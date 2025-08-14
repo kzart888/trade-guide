@@ -31,10 +31,6 @@ erDiagram
         string id PK
         string name
         number weight
-        timestamp createdAt
-        string createdBy FK
-        timestamp updatedAt
-        boolean active  // 下架=inactive
     }
     
     PriceRecord {
@@ -62,10 +58,9 @@ erDiagram
         string id PK
         string fromCityId FK
         string toCityId FK
-        number distance      // 用于单次直达体力判定；不做多跳最短路
+        number distance
         string createdBy FK
         timestamp updatedAt
-        boolean bidirectional // 缺省 true；若为 false 仅允许 from→to
     }
 ```
 
@@ -77,6 +72,9 @@ erDiagram
 - `pinHash`: PIN码哈希值，使用bcrypt加密存储
 - `approved`: 是否已被管理员审批
 - `isAdmin`: 是否为管理员
+- `failedAttempts`: PIN码输入失败次数，默认0
+- `lockedUntil`: 账户锁定到期时间，3次失败后锁定5分钟
+- `lastLoginAt`: 最后登录时间
 - `createdAt`: 账户创建时间
 
 ### City (城市表)  
@@ -90,12 +88,6 @@ erDiagram
 - `id`: 商品ID，英文标识如 "tea", "silk"
 - `name`: 商品中文名称
 - `weight`: 单件重量，用于载重计算
-- `active`: 是否有效（逻辑下架时设 false，不直接硬删，便于历史审计）
-- `createdAt / createdBy / updatedAt`: 追踪生命周期
-
-商品被下架或删除时：
-1. 所有引用其作为城市 buyableProductIds 的城市需触发重新校验（强制管理员补齐 3 项）
-2. 相关 PriceRecord 可选择：软删除或保留只读（实现上建议保留并停止更新）
 
 ### PriceRecord (价格记录表)
 - `cityId + productId`: 复合主键，唯一标识某城市某商品的价格
@@ -111,9 +103,7 @@ erDiagram
   - `price_update`: 价格更新
   - `city_products_update`: 城市商品配置更新  
   - `city_create/city_update/city_delete`: 城市管理
-    - `topology_update`: 拓扑更新（边增删或距离变化）
-    - `product_create/product_update/product_delete`: 商品增删改
-    - `city_rename`: 城市重命名
+  - `topology_update`: 拓扑更新
   - `user_approve`: 用户审批
 - `targetType`: 目标类型 (price, city, topology, user)
 - `targetId`: 目标对象ID
@@ -126,12 +116,9 @@ erDiagram
 - `id`: 边的唯一标识
 - `fromCityId`: 起始城市ID
 - `toCityId`: 目标城市ID
-- `distance`: 距离值，正整数（只用于单次直达体力消耗检查，不参与多跳计算）
-- `bidirectional`: 是否双向；true 时允许双方互达；false 仅 from→to
+- `distance`: 距离值，正整数
 - `createdBy`: 创建该连接的管理员ID
 - `updatedAt`: 最后更新时间
-
-存储规范：若所有边对称，可统一存一条记录并标记 `bidirectional=true`，不再冗余反向行。
 
 ## 索引策略
 
@@ -141,15 +128,13 @@ erDiagram
 - `AuditLog`: 
   - (userId, createdAt) 索引，按用户查看操作历史
   - (targetType, targetId, createdAt) 索引，按目标查看变化历史
-- `Edge`: (fromCityId), (toCityId) 索引，用于直接邻接快速查询（无最短路）
+- `Edge`: (fromCityId), (toCityId) 索引，用于图算法
 
 ## 数据约束
 
 ### 业务规则约束
-- 每个城市的 buyableProductIds 必须包含且仅包含 3 个 active 商品ID
-- 商品ID 必须在 Product 表中存在且 active=true
-- 城市之间只允许通过单条直接边进行一次运输（不拼接多跳）
-- 体力消耗=该边 distance；若 distance > stamina 则该目的城市不可选
+- 每个城市的 buyableProductIds 必须包含正好3个商品ID
+- 商品ID必须在Product表中存在
 - 距离值必须为正整数
 - PIN码必须为4位数字
 - 用户名长度限制 2-16 字符
@@ -161,11 +146,11 @@ erDiagram
 
 ## 初始数据
 
-### 初始商品数据（示例 25 种）
-参考 `README.md` 测试数据；后续管理员可新增 / 下架 / 重命名，需保持 ID 唯一不可复用（避免审计混淆）。
+### 25种商品数据
+参考 `README.md` 中的测试数据部分
 
-### 初始城市数据  
-参考 `README.md` 测试数据；管理员可增删城市与重命名（重命名产生审计记录，ID 不变）。
+### 20座城市数据  
+参考 `README.md` 中的测试数据部分
 
 ### 管理员账户
 - username: "admin"

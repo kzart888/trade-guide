@@ -28,7 +28,7 @@ core/city/      # 3-product configuration management
 - **Single Trip Only**: One direct move from origin to a directly connected city (no intermediate routing)
 - **Stamina Rule**: City reachable only if edge distance ≤ stamina; stamina assumed fully spent for that trip cycle
 - **Refresh Cycle**: Prices & stamina context considered fresh per cycle (e.g. next stamina refill after 3h, prices likely changed)
-- **Performance**: <20ms calculation (simple O(3 * degree(origin))) ; <90 Lighthouse mobile
+- **Performance**: <20ms calculation (simple O(3 * degree(origin))), mobile-first <100ms total response ; <90 Lighthouse mobile
 - **Composite Keys**: (cityId, productId) for PriceRecord
 - **Dynamic Catalog**: Admin can add/remove products & cities; cascading updates required
 - **Audit Everything**: AuditLog for all mutations
