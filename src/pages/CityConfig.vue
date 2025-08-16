@@ -186,8 +186,8 @@ async function onRenameProduct(productId: string, currentName: string) {
 
 async function onDeleteProduct(productId: string, name: string) {
   try {
-    // soft try delete
-    await productService.remove(productId);
+  // delete product; references in city buyables will be cleared to blanks
+  await productService.remove(productId);
     cityStore.products = await productService.list();
     // also refresh cities to reflect potential constraints
     cityStore.cities = await cityService.list();
@@ -198,13 +198,13 @@ async function onDeleteProduct(productId: string, name: string) {
       const ok = window.confirm(`商品「${name}」被城市配置引用。是否强制删除？\n\n强制删除将自动调整各城市的 3 个可买商品，以保持规则。`);
       if (!ok) return;
       try {
-        await productService.remove(productId, { force: true });
+        await productService.remove(productId);
         cityStore.products = await productService.list();
         cityStore.cities = await cityService.list();
         initEdits();
-        ui.success('已强制删除并修复配置');
+        ui.success('商品已删除，并清空所引用的城市配置槽位');
       } catch (e2: any) {
-        ui.error(e2?.message || '强制删除失败');
+        ui.error(e2?.message || '删除失败');
       }
     } else {
       ui.error(e?.message || '删除失败');

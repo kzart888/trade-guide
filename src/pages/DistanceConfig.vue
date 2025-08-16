@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useCityStore, useGraphStore } from '@/stores';
-import { cityService, graphService } from '@/services';
+import { cityService, graphService, productService } from '@/services';
 import { useUiStore } from '@/stores/ui';
 
 const cityStore = useCityStore();
@@ -93,6 +93,9 @@ function onDistance(destId: string, e: Event) {
 async function ensureData() {
   if (!Object.keys(cityStore.cities).length) {
     cityStore.cities = await cityService.list();
+  }
+  if (!Object.keys(cityStore.products).length) {
+    cityStore.products = await productService.list();
   }
   if (!graphStore.edges.length) {
     graphStore.edges = await graphService.listEdges();

@@ -329,13 +329,13 @@ export const cityService = {
   },
   async updateBuyables(
     cityId: string,
-    buyableProductIds: [string, string, string],
+    buyableProductIds: [string | null, string | null, string | null],
     opts?: { oldBuyables?: [string, string, string]; userId?: string }
   ): Promise<void> {
     if (!supabase) return; // local mock mode
     const { error } = await supabase
       .from('cities')
-      .update({ buyable_product_ids: buyableProductIds })
+  .update({ buyable_product_ids: buyableProductIds })
       .eq('id', cityId);
     if (error) throw error;
     try {
@@ -363,7 +363,10 @@ export const cityService = {
       out[c.id] = {
         id: c.id,
         name: c.name,
-        buyableProductIds: (c.buyable_product_ids as string[]).slice(0, 3) as [string, string, string],
+        // Allow blanks (nulls) if product was deleted; coerce to empty string for UI compatibility
+        buyableProductIds: (c.buyable_product_ids as (string|null)[])
+          .slice(0, 3)
+          .map(v => v ?? '') as [string, string, string],
       };
     }
     return out;
@@ -387,7 +390,7 @@ export const cityService = {
       // mock price map omitted here (read-only mock)
       return;
     }
-    const { error } = await supabase.from('cities').delete().eq('id', cityId);
+  const { error } = await supabase.from('cities').delete().eq('id', cityId);
     if (error) throw error; // edges & price_records cascade via FK
   },
 };
@@ -518,45 +521,28 @@ export const productService = {
     const { error } = await supabase.from('products').update({ name: newName }).eq('id', productId);
     if (error) throw error;
   },
-  async remove(productId: string, opts?: { force?: boolean }): Promise<void> {
+  async remove(productId: string): Promise<void> {
     if (!supabase) {
-      // Update mock cities to keep 3 buyables
-      const products = Object.keys(mockProducts as any).filter(id => id !== productId);
-      if (products.length < 3) throw new Error('删除后商品不足 3 种，无法维持城市配置');
+      // Mock: allow blanks; when a product is deleted, clear from city buyables without auto-filling
       for (const cid of Object.keys(mockCities as any)) {
         const arr = ((mockCities as any)[cid].buyableProductIds as string[]).slice();
-        if (arr.includes(productId)) {
-          const idx = arr.indexOf(productId);
-          const pool = products.filter(p => !arr.includes(p));
-          if (!pool.length) throw new Error('删除将导致某城市可买商品不足');
-          arr[idx] = pool[0];
+        const idx = arr.indexOf(productId);
+        if (idx >= 0) {
+          arr[idx] = '' as any; // blank
           (mockCities as any)[cid].buyableProductIds = [arr[0], arr[1], arr[2]];
         }
       }
       delete (mockProducts as any)[productId];
       return;
     }
-    if (opts?.force) {
-      // Ensure cities remain valid after deletion
-      const productsMap = await this.list();
-      const productIds = Object.keys(productsMap).filter(id => id !== productId);
-      if (productIds.length < 3) throw new Error('删除后商品不足 3 种，无法维持城市配置');
-      const cities = await cityService.list();
-      for (const cid of Object.keys(cities)) {
-        const arr = cities[cid].buyableProductIds.slice() as string[];
-        if (arr.includes(productId)) {
-          const idx = arr.indexOf(productId);
-          const pool = productIds.filter(p => !arr.includes(p));
-          if (!pool.length) throw new Error('删除将导致某城市可买商品不足');
-          arr[idx] = pool[0];
-          await cityService.updateBuyables(cid, [arr[0], arr[1], arr[2]] as any);
-        }
-      }
-    } else {
-      // soft check: warn if referenced
-      const cities = await cityService.list();
-      if (Object.values(cities).some(c => c.buyableProductIds.includes(productId as any))) {
-        throw new Error('HAS_ASSOCIATIONS');
+    // Allow deletion even if referenced; clear references to nulls
+    const cities = await cityService.list();
+    for (const cid of Object.keys(cities)) {
+      const arr = cities[cid].buyableProductIds.slice() as (string|null)[];
+      const idx = arr.indexOf(productId);
+      if (idx >= 0) {
+        arr[idx] = null;
+        await cityService.updateBuyables(cid, [arr[0], arr[1], arr[2]] as any);
       }
     }
     const { error } = await supabase.from('products').delete().eq('id', productId);

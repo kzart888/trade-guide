@@ -20,6 +20,11 @@ VALUES (
   approved = true,
   is_admin = true;
 
+-- (MVP) Open up cities table for writes if RLS blocks anon writes in this environment
+DO $$ BEGIN
+  CREATE POLICY IF NOT EXISTS "任何人可以管理城市(MVP)" ON cities FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN others THEN NULL; END $$;
+
 -- 1) Reset application data (preserve admin)
 -- Use single TRUNCATE with CASCADE to satisfy FK constraints between these tables
 TRUNCATE TABLE
