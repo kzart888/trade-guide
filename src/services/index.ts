@@ -115,6 +115,7 @@ export const userService = {
       .from('users')
       .select('id, username, created_at')
       .eq('approved', false)
+      .not('pin_hash', 'is', null)
       .order('created_at', { ascending: true });
     if (error) throw error;
     return (data ?? []).map((u: any) => ({ id: u.id, username: u.username, created_at: u.created_at }));
@@ -205,6 +206,9 @@ export const userService = {
         }
         throw res2.error;
       }
+      if (!res2.data || res2.data.length === 0) {
+        throw new Error('USER_NOT_FOUND');
+      }
     }
   },
   async approve(targetUserId: string, approved: boolean, opts?: { adminUserId?: string }): Promise<void> {
@@ -255,6 +259,8 @@ export const userService = {
           } else {
             throw del2.error;
           }
+        } else if (!del2.data || del2.data.length === 0) {
+          throw new Error('USER_NOT_FOUND');
         }
       }
     }
@@ -494,10 +500,8 @@ export const graphService = {
       }
       return;
     }
-    const payload = rows.map(r => ({ from_city_id: r.fromCityId, to_city_id: r.toCityId, distance: r.distance }));
-    const { error } = await supabase
-      .from('edges')
-      .upsert(payload, { onConflict: 'from_city_id,to_city_id' });
+  const payload = rows.map(r => ({ from_city_id: r.fromCityId, to_city_id: r.toCityId, distance: r.distance }));
+  const { error } = await supabase.from('edges').upsert(payload, { onConflict: 'from_city_id,to_city_id' });
     if (error) throw error;
   },
   async deleteEdges(rows: Array<{ fromCityId: string; toCityId: string }>): Promise<void> {
@@ -508,11 +512,18 @@ export const graphService = {
       }
       return;
     }
+    // Batch by from_city_id and delete with IN to reduce request count
+    const groups: Record<string, string[]> = {};
     for (const r of rows) {
-      const { error } = await supabase.from('edges')
+      if (!groups[r.fromCityId]) groups[r.fromCityId] = [];
+      groups[r.fromCityId].push(r.toCityId);
+    }
+    for (const [from, tos] of Object.entries(groups)) {
+      const { error } = await supabase
+        .from('edges')
         .delete()
-        .eq('from_city_id', r.fromCityId)
-        .eq('to_city_id', r.toCityId);
+        .eq('from_city_id', from)
+        .in('to_city_id', tos);
       if (error) throw error;
     }
   },

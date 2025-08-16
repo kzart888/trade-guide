@@ -113,17 +113,34 @@ async function save() {
       renameText.value = '';
       cityStore.cities = await cityService.list();
     }
-    const upserts: Array<{ fromCityId: string; toCityId: string; distance: number }> = [];
-    const deletes: Array<{ fromCityId: string; toCityId: string }> = [];
+    const toUpsert: Record<string, { fromCityId: string; toCityId: string; distance: number }> = {};
+    const toDelete: Record<string, { fromCityId: string; toCityId: string }> = {};
+    const addUpsert = (a: string, b: string, d: number) => {
+      const k1 = `${a}|${b}`;
+      const k2 = `${b}|${a}`;
+      toUpsert[k1] = { fromCityId: a, toCityId: b, distance: d };
+      toUpsert[k2] = { fromCityId: b, toCityId: a, distance: d };
+      delete toDelete[k1];
+      delete toDelete[k2];
+    };
+    const addDelete = (a: string, b: string) => {
+      const k1 = `${a}|${b}`;
+      const k2 = `${b}|${a}`;
+      toDelete[k1] = { fromCityId: a, toCityId: b };
+      toDelete[k2] = { fromCityId: b, toCityId: a };
+      delete toUpsert[k1];
+      delete toUpsert[k2];
+    };
+
     for (const [destId, val] of Object.entries(edits)) {
       if (val === '' || (typeof val === 'number' && val <= 0)) {
-        deletes.push({ fromCityId: originId.value, toCityId: destId });
-        deletes.push({ fromCityId: destId, toCityId: originId.value });
+        addDelete(originId.value, destId);
       } else if (typeof val === 'number' && val > 0) {
-        upserts.push({ fromCityId: originId.value, toCityId: destId, distance: val });
-        upserts.push({ fromCityId: destId, toCityId: originId.value, distance: val });
+        addUpsert(originId.value, destId, val);
       }
     }
+    const upserts = Object.values(toUpsert);
+    const deletes = Object.values(toDelete);
     if (upserts.length) await graphService.upsertEdges(upserts);
     if (deletes.length) await graphService.deleteEdges(deletes);
     // refresh
