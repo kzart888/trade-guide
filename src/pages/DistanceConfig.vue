@@ -11,8 +11,8 @@
         </label>
         <div class="flex items-center gap-1 text-sm">
           <input v-model.trim="renameText" class="border rounded px-2 py-1 w-28" :placeholder="currentCityName || '重命名'" />
-          <button class="px-2 py-1 border rounded" :disabled="!canRename" @click="renameCity">重命名</button>
         </div>
+        <button class="px-2 py-1 border rounded text-red-600 border-red-300" :disabled="!originId || saving" @click="onDeleteCity">删除城市</button>
         <button class="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="saving" @click="save">保存</button>
       </div>
     </div>
@@ -31,6 +31,15 @@
         </div>
       </div>
     </div>
+
+    <div class="mt-3 p-3 bg-white border rounded">
+      <div class="text-sm font-600 mb-2">新增城市</div>
+      <div class="flex items-center gap-2 text-sm">
+        <input v-model.trim="newCityName" class="border rounded px-2 py-1 w-40" placeholder="城市名" />
+        <button class="px-2 py-1 border rounded" :disabled="!canAddCity || saving" @click="onAddCity">添加</button>
+        <span class="text-xs text-gray-500">将自动分配 ID，并默认配置前 3 个商品</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -47,11 +56,12 @@ const ui = useUiStore();
 const originId = ref<string>('');
 const saving = ref(false);
 const renameText = ref('');
+const newCityName = ref('');
 
 const cityList = computed(() => Object.values(cityStore.cities));
 const otherCities = computed(() => cityList.value.filter(c => c.id !== originId.value));
 const currentCityName = computed(() => cityStore.cities[originId.value]?.name || '');
-const canRename = computed(() => !!originId.value && !!renameText.value && renameText.value !== currentCityName.value);
+const canAddCity = computed(() => !!newCityName.value && Object.keys(cityStore.products).length >= 3);
 
 // local edit buffer: destCityId -> distance number | ''
 const edits = reactive<Record<string, number | ''>>({});
@@ -90,6 +100,12 @@ async function save() {
   if (!originId.value) return;
   try {
     saving.value = true;
+    // Apply rename if provided
+    if (renameText.value && renameText.value !== currentCityName.value) {
+      await cityService.rename(originId.value, renameText.value);
+      renameText.value = '';
+      cityStore.cities = await cityService.list();
+    }
     const upserts: Array<{ fromCityId: string; toCityId: string; distance: number }> = [];
     const deletes: Array<{ fromCityId: string; toCityId: string }> = [];
     for (const [destId, val] of Object.entries(edits)) {
@@ -117,15 +133,63 @@ async function save() {
 onMounted(() => { ensureData(); });
 watch(originId, () => hydrateFromEdges());
 
-async function renameCity() {
-  if (!canRename.value || !originId.value) return;
+function genCityId(name: string, exists: Set<string>) {
+  const base = name
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '') || `city_${Math.random().toString(36).slice(2, 8)}`;
+  let id = base;
+  let i = 1;
+  while (exists.has(id)) {
+    id = `${base}_${i++}`;
+  }
+  return id;
+}
+
+async function onAddCity() {
+  if (!canAddCity.value) return;
   try {
-    await cityService.rename(originId.value, renameText.value);
+    saving.value = true;
+    const exists = new Set(Object.keys(cityStore.cities));
+    const id = genCityId(newCityName.value, exists);
+    const products = Object.keys(cityStore.products).slice(0, 3) as [string, string, string];
+    if (products.length < 3) throw new Error('需先配置至少 3 个商品');
+    await cityService.add({ id, name: newCityName.value, buyableProductIds: products });
     cityStore.cities = await cityService.list();
-    renameText.value = '';
-    ui.success('城市已重命名');
+    originId.value = id;
+    newCityName.value = '';
+    hydrateFromEdges();
+    ui.success('城市已添加');
   } catch (e: any) {
-    ui.error(e?.message || '重命名失败');
+    ui.error(e?.message || '添加失败');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function onDeleteCity() {
+  if (!originId.value) return;
+  const name = cityStore.cities[originId.value]?.name || originId.value;
+  const hasEdges = graphStore.edges.some(e => e.fromCityId === originId.value || e.toCityId === originId.value);
+  const warn = `确定删除城市「${name}」？这将删除与其相关的距离与价格数据（不可恢复）。` + (hasEdges ? '\n\n注意：存在连边，将一并删除。' : '');
+  const ok = window.confirm(warn);
+  if (!ok) return;
+  try {
+    saving.value = true;
+    await cityService.remove(originId.value);
+    cityStore.cities = await cityService.list();
+    graphStore.edges = await graphService.listEdges();
+    // pick another
+    originId.value = Object.keys(cityStore.cities)[0] || '';
+    renameText.value = '';
+    hydrateFromEdges();
+    ui.success('城市已删除');
+  } catch (e: any) {
+    ui.error(e?.message || '删除失败');
+  } finally {
+    saving.value = false;
   }
 }
 </script>

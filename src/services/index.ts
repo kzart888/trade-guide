@@ -177,6 +177,16 @@ export const priceService = {
 
 export const cityService = {
   // get/set city & buyable products configs
+  async add(city: { id: string; name: string; buyableProductIds: [string, string, string]; createdBy?: string }): Promise<void> {
+    if (!supabase) {
+      (mockCities as any)[city.id] = { id: city.id, name: city.name, buyableProductIds: city.buyableProductIds } as any;
+      return;
+    }
+    const { error } = await supabase
+      .from('cities')
+      .insert({ id: city.id, name: city.name, buyable_product_ids: city.buyableProductIds, created_by: city.createdBy ?? null });
+    if (error) throw error;
+  },
   async updateBuyables(
     cityId: string,
     buyableProductIds: [string, string, string],
@@ -225,6 +235,20 @@ export const cityService = {
     }
     const { error } = await supabase.from('cities').update({ name: newName }).eq('id', cityId);
     if (error) throw error;
+  },
+  async remove(cityId: string): Promise<void> {
+    if (!supabase) {
+      delete (mockCities as any)[cityId];
+      // also remove mock edges touching the city
+      for (let i = (mockEdges as any).length - 1; i >= 0; i--) {
+        const e = (mockEdges as any)[i];
+        if (e.fromCityId === cityId || e.toCityId === cityId) (mockEdges as any).splice(i, 1);
+      }
+      // mock price map omitted here (read-only mock)
+      return;
+    }
+    const { error } = await supabase.from('cities').delete().eq('id', cityId);
+    if (error) throw error; // edges & price_records cascade via FK
   },
 };
 
@@ -328,10 +352,46 @@ export const productService = {
     const { error } = await supabase.from('products').update({ name: newName }).eq('id', productId);
     if (error) throw error;
   },
-  async remove(productId: string): Promise<void> {
+  async remove(productId: string, opts?: { force?: boolean }): Promise<void> {
     if (!supabase) {
+      // Update mock cities to keep 3 buyables
+      const products = Object.keys(mockProducts as any).filter(id => id !== productId);
+      if (products.length < 3) throw new Error('删除后商品不足 3 种，无法维持城市配置');
+      for (const cid of Object.keys(mockCities as any)) {
+        const arr = ((mockCities as any)[cid].buyableProductIds as string[]).slice();
+        if (arr.includes(productId)) {
+          const idx = arr.indexOf(productId);
+          const pool = products.filter(p => !arr.includes(p));
+          if (!pool.length) throw new Error('删除将导致某城市可买商品不足');
+          arr[idx] = pool[0];
+          (mockCities as any)[cid].buyableProductIds = [arr[0], arr[1], arr[2]];
+        }
+      }
       delete (mockProducts as any)[productId];
       return;
+    }
+    if (opts?.force) {
+      // Ensure cities remain valid after deletion
+      const productsMap = await this.list();
+      const productIds = Object.keys(productsMap).filter(id => id !== productId);
+      if (productIds.length < 3) throw new Error('删除后商品不足 3 种，无法维持城市配置');
+      const cities = await cityService.list();
+      for (const cid of Object.keys(cities)) {
+        const arr = cities[cid].buyableProductIds.slice() as string[];
+        if (arr.includes(productId)) {
+          const idx = arr.indexOf(productId);
+          const pool = productIds.filter(p => !arr.includes(p));
+          if (!pool.length) throw new Error('删除将导致某城市可买商品不足');
+          arr[idx] = pool[0];
+          await cityService.updateBuyables(cid, [arr[0], arr[1], arr[2]] as any);
+        }
+      }
+    } else {
+      // soft check: warn if referenced
+      const cities = await cityService.list();
+      if (Object.values(cities).some(c => c.buyableProductIds.includes(productId as any))) {
+        throw new Error('HAS_ASSOCIATIONS');
+      }
     }
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (error) throw error;
