@@ -94,7 +94,9 @@ async function doApprove(id: string, approved: boolean) {
   try {
     await userService.approve(id, approved, { adminUserId: user.username });
     ui.success(approved ? '已通过审批' : '已拒绝');
-    await load();
+  // Optimistic update: remove from pending immediately
+  pending.value = pending.value.filter(p => p.id !== id);
+  await load();
   } catch (e: any) {
     ui.error(e?.message || '操作失败');
   } finally {
