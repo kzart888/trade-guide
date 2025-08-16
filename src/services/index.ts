@@ -267,7 +267,9 @@ export const priceService = {
       product_id: r.productId,
       buy_price: r.buyPrice,
       sell_price: r.sellPrice,
-      updated_by: opts?.userId ?? r.updatedBy ?? null,
+  // Explicitly bump updated_at on every write so staleness UI refreshes immediately
+  updated_at: new Date(),
+  updated_by: opts?.userId ?? r.updatedBy ?? null,
     }));
 
   const { error } = await supabase
