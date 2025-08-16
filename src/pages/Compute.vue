@@ -41,12 +41,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useCityStore, useGraphStore, usePriceStore } from '@/stores';
 import { computeTopPlansPerBuyable } from '@/core/strategy/computeBestDirectTrip';
 import { productService, cityService, graphService, priceService } from '@/services';
 import { useUiStore } from '@/stores/ui';
 import { humanizeError } from '@/services/errors';
+import { useUserStore } from '@/stores/user';
 
 const cityStore = useCityStore();
 const graphStore = useGraphStore();
@@ -70,6 +71,32 @@ const stalenessClass = computed(() => {
 const originCityId = ref('');
 const stamina = ref(20);
 const maxWeight = ref(100);
+const user = useUserStore();
+
+function settingsKey(username: string) {
+  // Persist per user; fallback to 'anon' if no user
+  const u = username || 'anon';
+  return `tg_compute_settings_v1_${u}`;
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(settingsKey(user.username));
+    if (raw) {
+      const s = JSON.parse(raw) as { originCityId?: string; stamina?: number; maxWeight?: number };
+      if (s.originCityId) originCityId.value = s.originCityId;
+      if (typeof s.stamina === 'number') stamina.value = s.stamina;
+      if (typeof s.maxWeight === 'number') maxWeight.value = s.maxWeight;
+    }
+  } catch {}
+}
+
+function saveSettings() {
+  try {
+    const payload = { originCityId: originCityId.value, stamina: stamina.value, maxWeight: maxWeight.value };
+    localStorage.setItem(settingsKey(user.username), JSON.stringify(payload));
+  } catch {}
+}
 
 const plans = ref<ReturnType<typeof computeTopPlansPerBuyable>>([]);
 const ui = useUiStore();
@@ -82,10 +109,17 @@ onMounted(async () => {
     const { priceMap, lastUpdatedAt } = await priceService.fetchMap();
     priceStore.priceMap = priceMap;
     priceStore.lastUpdatedAt = lastUpdatedAt;
-    originCityId.value = Object.keys(cityStore.cities)[0] || '';
+    // Load persisted settings, then ensure origin default
+    loadSettings();
+    if (!originCityId.value) originCityId.value = Object.keys(cityStore.cities)[0] || '';
   } catch (e) {
     ui.error(humanizeError(e));
   }
+});
+
+// Persist on change
+watch([originCityId, stamina, maxWeight, () => user.username], () => {
+  saveSettings();
 });
 
 function onCompute() {
