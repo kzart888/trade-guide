@@ -102,6 +102,11 @@ DO $$ BEGIN
   CREATE POLICY "任何人可以更新用户(MVP)" ON users FOR UPDATE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- 4) 任何人可删除用户（MVP，仅用于当前无服务端令牌环境；上线前请收紧）
+DO $$ BEGIN
+  CREATE POLICY "任何人可以删除用户(MVP)" ON users FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- 城市表策略  
 CREATE POLICY "所有已认证用户可以查看城市" ON cities FOR SELECT
   USING (auth.jwt() ->> 'approved' = 'true');
@@ -121,10 +126,12 @@ CREATE POLICY "用户可以更新价格" ON price_records FOR UPDATE
 
 -- 边表策略
 CREATE POLICY "已认证用户可以查看拓扑" ON edges FOR SELECT
-  USING (auth.jwt() ->> 'approved' = 'true');
+  USING (true);
 
-CREATE POLICY "管理员可以管理拓扑" ON edges FOR ALL
-  USING (auth.jwt() ->> 'is_admin' = 'true');
+-- MVP：允许匿名或任何人管理拓扑（上线前收紧为管理员）
+DO $$ BEGIN
+  CREATE POLICY "任何人可以管理拓扑(MVP)" ON edges FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 审计日志策略
 CREATE POLICY "用户可以查看自己的审计日志" ON audit_logs FOR SELECT

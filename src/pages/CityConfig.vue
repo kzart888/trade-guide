@@ -1,13 +1,5 @@
 <template>
   <div class="p-4 space-y-4 pb-20">
-    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
-      <h1 class="text-lg font-600">商品配置（每城 3 个可买商品）</h1>
-      <div class="flex items-center gap-2 text-sm">
-        <input v-model.trim="newProduct.name" class="border rounded px-2 py-1 w-28" placeholder="商品名" />
-        <input v-model.number="newProduct.weight" type="number" min="1" inputmode="numeric" class="border rounded px-2 py-1 w-24" placeholder="重量" />
-        <button class="px-2 py-1 border rounded" :disabled="!canAddProduct" @click="addProduct">新增商品</button>
-      </div>
-    </div>
     <h1 class="text-lg font-600">商品配置（每城 3 个可买商品）</h1>
     <div class="text-xs text-gray-500">规则：每个城市必须配置且仅能配置 3 个商品，且不可重复。</div>
 

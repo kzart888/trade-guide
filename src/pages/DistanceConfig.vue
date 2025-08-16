@@ -9,10 +9,6 @@
             <option v-for="c in cityList" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </label>
-        <div class="flex items-center gap-1 text-sm">
-          <input v-model.trim="renameText" class="border rounded px-2 py-1 w-28" :placeholder="currentCityName || '重命名'" />
-        </div>
-        <button class="px-2 py-1 border rounded text-red-600 border-red-300" :disabled="!originId || saving" @click="onDeleteCity">删除城市</button>
         <button class="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="saving" @click="save">保存</button>
       </div>
     </div>
