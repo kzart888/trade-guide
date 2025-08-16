@@ -167,6 +167,16 @@ export const userService = {
   async resetPin(targetUserId: string, newPin: string, opts?: { operatorId?: string }): Promise<void> {
     if (!validatePinFormat(newPin)) throw new Error('PIN_INVALID');
     if (!supabase) return; // demo no-op
+    // Prevent non-creator admins from resetting the creator's PIN
+    if ((opts?.operatorId || '').toLowerCase() !== 'admin') {
+      // resolve username for target
+      const target = await supabase.from('users').select('username').eq('id', targetUserId).maybeSingle();
+      if (target.error) throw target.error;
+      const targetUsername = target.data?.username ?? targetUserId;
+      if ((targetUsername || '').toLowerCase() === 'admin') {
+        throw new Error('FORBIDDEN_RESET_CREATOR');
+      }
+    }
     const hashed = await hashPin(newPin);
     let { data, error } = await supabase
       .from('users')

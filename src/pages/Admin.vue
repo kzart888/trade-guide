@@ -41,7 +41,11 @@
             </div>
             <div class="flex items-center gap-2">
               <button class="px-2 py-1 border rounded" :disabled="loading || u.username==='admin' || !isCreator" @click="toggleAdmin(u)">{{ u.is_admin ? '取消管理员' : '设为管理员' }}</button>
-              <button class="px-2 py-1 border rounded" :disabled="loading || !(isAdmin||isCreator)" @click="resetPin(u)">重置PIN</button>
+              <button
+                class="px-2 py-1 border rounded"
+                :disabled="loading || !(isAdmin||isCreator) || (u.username==='admin' && !isCreator)"
+                @click="resetPin(u)"
+              >重置PIN</button>
               <button class="px-2 py-1 border rounded text-red-600 border-red-300" :disabled="loading || u.username==='admin' || !isCreator" @click="deleteUser(u)">删除用户</button>
             </div>
           </div>
@@ -128,6 +132,9 @@ onMounted(() => {
 
 async function resetPin(u: { id: string; username: string }) {
   if (!(isAdmin.value || isCreator.value)) return;
+  if (u.username === 'admin' && !isCreator.value) {
+    return ui.error('管理员不可重置创建者的 PIN');
+  }
   const pin = window.prompt(`为用户「${u.username}」设置新 PIN（4位数字）:`);
   if (!pin) return;
   if (!/^\d{4}$/.test(pin)) return ui.error('PIN 必须是 4 位数字');
