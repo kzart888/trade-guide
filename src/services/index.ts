@@ -110,25 +110,49 @@ export const userService = {
   },
   async setAdmin(targetUserId: string, isAdmin: boolean): Promise<void> {
     if (!supabase) return; // no-op in demo
-    const { error } = await supabase.from('users').update({ is_admin: isAdmin }).eq('id', targetUserId);
+    // Try by id; if no rows affected, try by username
+    let q = supabase.from('users').update({ is_admin: isAdmin }).eq('id', targetUserId).select('id');
+    let { data, error } = await q;
     if (error) throw error;
+    if (!data || data.length === 0) {
+      const res2 = await supabase.from('users').update({ is_admin: isAdmin }).eq('username', targetUserId).select('id');
+      if (res2.error) throw res2.error;
+    }
   },
   async deleteUser(targetUserId: string): Promise<void> {
     if (!supabase) return; // demo no-op
     // Soft disable: mark unapproved and clear PIN & lock state so the account cannot authenticate
-    const { error } = await supabase
+    let { data, error } = await supabase
       .from('users')
       .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
-      .eq('id', targetUserId);
+      .eq('id', targetUserId)
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      const res2 = await supabase
+        .from('users')
+        .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
+        .eq('username', targetUserId)
+        .select('id');
+      if (res2.error) throw res2.error;
+    }
   },
   async approve(targetUserId: string, approved: boolean, opts?: { adminUserId?: string }): Promise<void> {
     if (!supabase) return; // demo mode no-op
-    const { error } = await supabase
+    let { data, error } = await supabase
       .from('users')
       .update({ approved })
-      .eq('id', targetUserId);
+      .eq('id', targetUserId)
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      const res2 = await supabase
+        .from('users')
+        .update({ approved })
+        .eq('username', targetUserId)
+        .select('id');
+      if (res2.error) throw res2.error;
+    }
     try {
       await auditService.log(
         (opts?.adminUserId ?? null) as any,
@@ -144,11 +168,20 @@ export const userService = {
     if (!validatePinFormat(newPin)) throw new Error('PIN_INVALID');
     if (!supabase) return; // demo no-op
     const hashed = await hashPin(newPin);
-    const { error } = await supabase
+    let { data, error } = await supabase
       .from('users')
       .update({ pin_hash: hashed, failed_attempts: 0, locked_until: null })
-      .eq('id', targetUserId);
+      .eq('id', targetUserId)
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      const res2 = await supabase
+        .from('users')
+        .update({ pin_hash: hashed, failed_attempts: 0, locked_until: null })
+        .eq('username', targetUserId)
+        .select('id');
+      if (res2.error) throw res2.error;
+    }
     try {
       await auditService.log((opts?.operatorId ?? null) as any, 'user_reset_pin', 'user', targetUserId, null, null, 'reset user pin');
     } catch {}
