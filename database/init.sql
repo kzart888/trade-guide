@@ -114,6 +114,12 @@ CREATE POLICY "所有已认证用户可以查看城市" ON cities FOR SELECT
 CREATE POLICY "管理员可以管理城市" ON cities FOR ALL
   USING (auth.jwt() ->> 'is_admin' = 'true');
 
+-- (MVP) 在无 Supabase Auth 的 anon-key 模式下，开放城市表的所有操作
+-- 上线前请改回仅管理员可写
+DO $$ BEGIN
+  CREATE POLICY "任何人可以管理城市(MVP)" ON cities FOR ALL USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- 价格记录策略
 CREATE POLICY "已认证用户可以查看价格" ON price_records FOR SELECT
   USING (auth.jwt() ->> 'approved' = 'true');
