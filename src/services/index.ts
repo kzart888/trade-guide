@@ -111,10 +111,10 @@ export const userService = {
   },
   async deleteUser(targetUserId: string): Promise<void> {
     if (!supabase) return; // demo no-op
-    // Soft disable login: set approved = false and clear lock counters
+    // Soft disable: mark unapproved and clear PIN & lock state so the account cannot authenticate
     const { error } = await supabase
       .from('users')
-      .update({ approved: false, locked_until: new Date(8640000000000000).toISOString(), failed_attempts: 99 })
+      .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
       .eq('id', targetUserId);
     if (error) throw error;
   },
