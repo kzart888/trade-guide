@@ -86,14 +86,21 @@ ALTER TABLE edges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- 用户表策略
-CREATE POLICY "用户可以查看已审批的用户信息" ON users FOR SELECT 
-  USING (approved = true);
+-- MVP 简化策略：允许匿名注册与管理（上线前请替换为 Edge Functions 或服务密钥）
+-- 1) 任何人可读取用户（用于用户管理页显示）
+DO $$ BEGIN
+  CREATE POLICY "任何人可以读取用户(MVP)" ON users FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "管理员可以管理用户" ON users FOR ALL 
-  USING (auth.jwt() ->> 'is_admin' = 'true');
+-- 2) 任何人可提交注册（仅允许未审批且非管理员）
+DO $$ BEGIN
+  CREATE POLICY "任何人可以注册(MVP)" ON users FOR INSERT WITH CHECK (approved = false AND is_admin = false);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "用户可以更新自己的信息" ON users FOR UPDATE 
-  USING (id = auth.jwt() ->> 'sub');
+-- 3) 任何人可更新用户（用于审批、设管理员、重置PIN、软删除）
+DO $$ BEGIN
+  CREATE POLICY "任何人可以更新用户(MVP)" ON users FOR UPDATE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 城市表策略  
 CREATE POLICY "所有已认证用户可以查看城市" ON cities FOR SELECT

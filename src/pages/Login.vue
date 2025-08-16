@@ -10,13 +10,14 @@
       <PinInput v-model="pin" :length="4" @complete="submit" />
     </div>
     <div class="flex items-center gap-2">
-      <button class="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!canSubmit || loggingIn" @click="submit">登录</button>
+      <button class="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!canSubmit || loggingIn || waiting" @click="submit">登录</button>
       <span v-if="loggingIn" class="text-sm text-blue-600">登录中…</span>
       <span v-else-if="error" class="text-sm text-red-600">{{ errorHint }}</span>
+      <span v-else-if="waiting" class="text-sm text-amber-600">注册成功，等待审批中</span>
     </div>
     <div class="pt-2 text-sm text-gray-600">
       没有账号？
-      <button class="underline text-blue-600 disabled:opacity-60" :disabled="!username || !/^\d{4}$/.test(pin)" @click="register">提交注册（待管理员审批）</button>
+  <button class="underline text-blue-600 disabled:opacity-60" :disabled="!username || !/^\d{4}$/.test(pin) || waiting" @click="register">提交注册（待管理员审批）</button>
     </div>
   </div>
 </template>
@@ -35,6 +36,7 @@ const username = ref('');
 const pin = ref('');
 const loggingIn = computed(() => store.loggingIn);
 const error = computed(() => store.error);
+const waiting = ref(false);
 const canSubmit = computed(() => username.value.length > 0 && /^\d{4}$/.test(pin.value));
 const errorHint = computed(() => {
   switch (error.value) {
@@ -58,7 +60,8 @@ async function submit() {
 async function register() {
   try {
     await userService.register(username.value, pin.value);
-    ui.success('注册已提交，等待管理员审批');
+  ui.success('注册已提交，等待管理员审批');
+  waiting.value = true;
   } catch (e: any) {
     ui.error(e?.message || '注册失败');
   }

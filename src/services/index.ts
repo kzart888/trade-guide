@@ -138,6 +138,19 @@ export const userService = {
       );
     } catch {}
   },
+  async resetPin(targetUserId: string, newPin: string, opts?: { operatorId?: string }): Promise<void> {
+    if (!validatePinFormat(newPin)) throw new Error('PIN_INVALID');
+    if (!supabase) return; // demo no-op
+    const hashed = await hashPin(newPin);
+    const { error } = await supabase
+      .from('users')
+      .update({ pin_hash: hashed, failed_attempts: 0, locked_until: null })
+      .eq('id', targetUserId);
+    if (error) throw error;
+    try {
+      await auditService.log((opts?.operatorId ?? null) as any, 'user_reset_pin', 'user', targetUserId, null, null, 'reset user pin');
+    } catch {}
+  },
 };
 
 export const priceService = {
