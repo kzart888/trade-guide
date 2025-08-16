@@ -1,6 +1,6 @@
 <template>
-  <div class="p-4 space-y-4 pb-20">
-    <h1 class="text-lg font-600">商品配置（每城 3 个可买商品）</h1>
+  <div class="p-4 space-y-3 pb-20">
+    <h1 class="text-sm md:text-lg font-600 leading-5 md:leading-6">商品配置（每城 3 个可买商品）</h1>
     <div class="text-xs text-gray-500">规则：每个城市必须配置且仅能配置 3 个商品，且不可重复。</div>
 
   <div class="space-y-3">

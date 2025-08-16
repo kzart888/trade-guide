@@ -1,8 +1,8 @@
 <template>
   <div class="p-4 space-y-3">
-    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
-      <h1 class="text-lg font-600">计算</h1>
-      <button class="px-3 py-1.5 bg-blue-600 text-white rounded" @click="onCompute">开始计算</button>
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-0.5 md:py-2 z-10">
+      <h1 class="text-sm md:text-lg font-600 leading-5 md:leading-6">计算</h1>
+      <button class="px-2 py-0.5 md:px-3 md:py-1.5 bg-blue-600 text-white rounded" @click="onCompute">开始计算</button>
     </div>
     <div v-if="lastUpdatedAt" class="text-xs">
       <span :class="stalenessClass">价格上次更新时间：{{ new Date(lastUpdatedAt).toLocaleString() }}（{{ minutesAgo }} 分钟前）</span>

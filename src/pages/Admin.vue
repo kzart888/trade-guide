@@ -1,8 +1,8 @@
 <template>
-  <div class="p-4 space-y-4">
-    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
-      <h1 class="text-lg font-600">用户管理</h1>
-      <button class="px-3 py-1 rounded bg-gray-200" @click="load" :disabled="loading">{{ loading ? '加载中…' : '刷新' }}</button>
+  <div class="p-4 space-y-3">
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-0.5 md:py-2 z-10">
+      <h1 class="text-sm md:text-lg font-600 leading-5 md:leading-6">用户管理</h1>
+      <button class="px-2 py-0.5 md:px-3 md:py-1 rounded bg-gray-200" @click="load" :disabled="loading">{{ loading ? '加载中…' : '刷新' }}</button>
     </div>
     <p v-if="!canManage" class="text-red-500">权限不足：仅管理员或创建者可访问。</p>
 

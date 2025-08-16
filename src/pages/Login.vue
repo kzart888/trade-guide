@@ -1,16 +1,16 @@
 <template>
-  <div class="p-6 space-y-4">
-    <h1 class="text-lg font-600">登录</h1>
+  <div class="p-6 space-y-3">
+    <h1 class="text-sm md:text-lg font-600 leading-5 md:leading-6">登录</h1>
     <div class="space-y-2">
       <label class="block text-sm">用户名</label>
-      <input v-model.trim="username" class="w-full border rounded px-3 py-2" placeholder="请输入用户名" />
+  <input v-model.trim="username" class="w-full border rounded px-3 py-2 md:py-2 py-1.5" placeholder="请输入用户名" />
     </div>
     <div class="space-y-2">
       <label class="block text-sm">PIN码（4位）</label>
-      <PinInput v-model="pin" :length="4" @complete="submit" />
+  <PinInput v-model="pin" :length="4" @complete="submit" />
     </div>
     <div class="flex items-center gap-2">
-      <button class="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!canSubmit || loggingIn || waiting" @click="submit">登录</button>
+      <button class="px-2 py-1 md:px-3 md:py-2 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!canSubmit || loggingIn || waiting" @click="submit">登录</button>
       <span v-if="loggingIn" class="text-sm text-blue-600">登录中…</span>
       <span v-else-if="error" class="text-sm text-red-600">{{ errorHint }}</span>
       <span v-else-if="waiting" class="text-sm text-amber-600">注册成功，等待审批中</span>

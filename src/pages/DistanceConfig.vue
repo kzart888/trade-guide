@@ -1,15 +1,15 @@
 <template>
   <div class="p-4 space-y-3 pb-20">
-    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
-      <div class="text-lg font-600">城市距离配置</div>
-      <div class="flex items-center gap-2">
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-0.5 md:py-2 z-10">
+      <div class="text-sm md:text-lg font-600 leading-5 md:leading-6">城市距离配置</div>
+      <div class="flex items-center gap-1 md:gap-2">
         <label class="flex items-center gap-2 text-sm">
           <span>起点</span>
           <select v-model="originId" class="border rounded px-2 py-1">
             <option v-for="c in cityList" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </label>
-        <button class="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="saving" @click="save">保存</button>
+        <button class="px-2 py-0.5 md:px-3 md:py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="saving" @click="save">保存</button>
       </div>
     </div>
 
