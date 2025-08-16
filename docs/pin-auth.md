@@ -28,16 +28,15 @@
 5. 登录成功，创建会话
 
 ### 安全措施
-```typescript
-// PIN码加密存储
-const bcrypt = require('bcryptjs');
-const saltRounds = 10;
+```ts
+import { validatePinFormat, hashPin, verifyPin } from '@/core/auth/pin';
 
 // 存储PIN码
-const pinHash = await bcrypt.hash(pin, saltRounds);
+if (!validatePinFormat(pin)) throw new Error('PIN_INVALID_FORMAT');
+const pinHash = await hashPin(pin); // 10轮盐
 
 // 验证PIN码
-const isValid = await bcrypt.compare(pin, storedHash);
+const isValid = await verifyPin(pin, storedHash);
 ```
 
 ### 失败处理

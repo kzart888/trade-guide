@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+  "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "lint": "eslint . --ext vue,js,jsx,cjs,mjs,ts,tsx,cts,mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
+  "format": "prettier --write src/",
+  "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "vue": "^3.4.0",

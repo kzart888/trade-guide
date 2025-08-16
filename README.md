@@ -10,6 +10,7 @@
 - **[任务清单](TODO.md)**: 详细任务列表与进度跟踪
 - **[数据模型](docs/data-models.md)**: 数据库设计与实体关系
 - **[PIN认证](docs/pin-auth.md)**: 用户认证系统设计
+- **[部署指南](docs/deploy.md)**: 快速部署（Demo/后端）
 
 ## 🎯 核心功能
 
@@ -62,6 +63,17 @@ npm install
 # 启动开发服务器
 npm run dev
 ```
+### 常用脚本
+```bash
+# 运行单元测试
+npm run test
+
+# 生产构建
+npm run build
+
+# 类型检查（可选，若安装了合适版本的 vue-tsc）
+npm run typecheck
+```
 
 ### 环境变量
 ```bash
@@ -69,6 +81,8 @@ npm run dev
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
+
+说明：开发阶段若未配置上述变量，前端将使用本地 Mock 数据运行（见 `src/mocks/seed.ts`）。
 
 ## 🔧 核心算法
 
@@ -137,8 +151,9 @@ interface TradePlan {
 
 ### 认证机制
 - 用户名注册 + 管理员审批
-- 4位PIN码 + bcrypt加密存储
+- 4位PIN码 + bcrypt加密存储（实现于 `src/core/auth/pin.ts`：validatePinFormat/hashPin/verifyPin）
 - 会话管理 + 自动过期
+ - 登录：`/login` 页面；本地 Mock 模式下 PIN 固定为 1234
 
 ### 权限控制
 - 管理员：审批用户、城市拓扑管理、全局审计
@@ -148,6 +163,25 @@ interface TradePlan {
 - 输入验证与清洗
 - SQL注入防护（Supabase RLS）
 - 操作频率限制
+
+## 🧱 服务层与 Mock 数据
+
+- Mock 数据：`src/mocks/seed.ts` 统一维护（城市/商品/边/价格）。
+- 服务层：`src/services/`（supabaseClient.ts、priceService 等）
+  - 价格保存：`priceService.saveBatch` → Supabase `price_records` upsert；未配置环境变量时为本地 no-op
+  - 审计日志：`auditService.log` → Supabase `audit_logs`；失败不阻塞用户操作
+  - 城市商品配置：`cityService.updateBuyables` → 更新 `cities.buyable_product_ids` 并写入审计
+  - 只读拉取（有 Supabase）：`productService.list` / `cityService.list` / `graphService.listEdges` / `priceService.fetchMap`；无 Supabase 时自动返回 Mock 数据
+  - 登录：`userService.login` → 校验 PIN（Supabase: users.pin_hash；Mock: PIN=1234）+ 登录审计
+
+## ⏱️ 价格时效提示
+
+- 规则：> 60 分钟显示黄色警告，> 90 分钟显示红色提醒。
+- 位置：计算页顶部显示最近一次价格更新时间与颜色提示（后续可扩展到更多页面）。
+ - 数据刷新：价格在应用根部每 60s 轮询一次（`priceStore.startPolling`），保存后立即 refresh 同步服务端时间
+
+
+ 
 
 ## 📈 性能指标
 
@@ -159,9 +193,9 @@ interface TradePlan {
 ## 🧪 测试策略
 
 ### 单元测试
-- 图算法测试 (graph.spec.ts)
-- 策略算法测试 (strategy.spec.ts)  
-- PIN验证测试 (auth.spec.ts)
+- computeBestDirectTrip.spec.ts (直接相邻枚举策略算法测试)
+- src/core/auth/__tests__/pin.spec.ts (PIN码验证测试)
+- validators.spec.ts (输入验证测试)
 
 ### 集成测试
 - 完整用户流程测试
@@ -169,6 +203,8 @@ interface TradePlan {
 - 前后端集成测试
 
 ## 📦 部署指南
+
+提示：完整流程见 `docs/deploy.md`。
 
 ### Supabase配置
 1. 创建新项目
@@ -198,3 +234,8 @@ interface TradePlan {
 
 项目维护者：[维护者信息]
 问题反馈：[Issue链接]
+
+## 🧑‍💻 录入体验
+- 保存反馈：保存中/成功/失败提示；失败支持一键重试（PriceEntry）
+ - PIN 输入组件：逐位输入、自动跳转/退格、粘贴支持；登录页记住用户名
+ - 全局提示：`ToastHost` + `uiStore`（成功/失败/信息），已集成 PriceEntry/CityConfig

@@ -134,7 +134,7 @@ INSERT INTO users (id, username, pin_hash, approved, is_admin)
 VALUES (
   'admin', 
   'admin',
-  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- 'password' 的 bcrypt 哈希
+  '$2a$10$F9yNecDCbJsacz8/HYgccO1eY6mvdlnqWnciIErU8TS4ve4bS6fOe', -- '1234' 的 bcrypt 哈希
   true,
   true
 ) ON CONFLICT (id) DO NOTHING;

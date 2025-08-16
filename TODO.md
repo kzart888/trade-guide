@@ -10,62 +10,81 @@
 - [x] 生成 mock 价格 JSON  
 - [x] 设计审计日志数据结构
 - [x] PIN码验证逻辑设计（4位数字）
-- [x] 创建数据库初始化SQL
 - [x] 创建TypeScript类型定义
 
 ## 🧮 Phase 1: 核心算法 (Day 1-2)
 
-- [ ] TypeScript 接口定义
-- [ ] 直接相邻枚举单次最优计算函数 + 单元测试
-- [ ] PIN码加密存储与验证算法
-- [ ] 算法性能测试（目标 < 100ms）
+- [x] TypeScript 接口定义
+- [x] 直接相邻枚举单次最优计算函数 + 单元测试
+- [x] PIN码加密存储与验证算法
+- [x] 算法性能测试（目标 < 100ms）
 
 ## 🎨 Phase 2: 前端基础 (Day 2-4)
 
 ### 项目初始化
-- [ ] Vite+Vue3+TypeScript 项目骨架
-- [ ] ESLint + Prettier + 路径别名配置
-- [ ] UnoCSS 配置与基础样式
-- [ ] Pinia 状态管理设置
+- [x] Vite+Vue3+TypeScript 项目骨架
+- [x] ESLint + Prettier + 路径别名配置
+- [x] UnoCSS 配置与基础样式
+- [x] Pinia 状态管理设置
+ - [x] 集中 Mock 数据（src/mocks/seed.ts）
 
-### 核心组件
-- [ ] 路由 / Tab 布局
-- [ ] 价格录入页面 (25行商品表格)
-- [ ] 计算页面 (参数输入 + 结果展示)
-- [ ] 商品配置页面 (城市列表 + 商品选择器)
+- [x] 用户登录组件（用户名 + PIN码输入）
+	- [x] 登录页面 `/login` + 基础校验
+	- [x] 路由守卫：未登录跳转登录页
+	- [x] PIN 输入 UX（自动前进/回退/粘贴，数字键盘）
+- [x] 计算页面 (参数输入 + 结果展示最小可运行)
+ - [x] 价格录入页置顶本城3可买商品
+- [x] userStore（username, approved, isAdmin, loggingIn, error）
+- [x] cityStore（currentCityId, cities, products config）
+ - [x] 价格保存反馈（保存中/成功/失败 + 重试）
+- [x] graphStore（edges 缓存；无需最短路缓存，仅直接边查询）
 - [ ] 用户登录组件 (用户名 + PIN码输入)
+	- [x] 登录页面 `/login` + 基础校验
+	- [x] 路由守卫：未登录跳转登录页
 
-### 状态管理
-- [ ] userStore（username, pin, approved, isAdmin）
-- [ ] cityStore（currentCityId, cities, products config）
-- [ ] priceStore（价格 Map + 更新方法 + 脏状态）
-- [ ] graphStore（edges, version；无需最短路缓存，仅直接边查询）
-
-## 🔗 Phase 3: 后端集成 (Day 4-6)
-
+- [ ] Supabase 项目创建
+ - [x] supabaseClient.ts 初始化（环境变量占位）
+- [x] 用户表 (User) 创建（见 database/init.sql）
+- [x] 价格表 (PriceRecord) 创建  
+- [x] 审计表 (AuditLog) 创建
+- [x] 城市表 (City) 创建
+- [x] 边表 (Edge) 创建
+- [x] RLS 权限策略配置（基于 approved/is_admin 声明）
 ### 数据库设计
 - [ ] Supabase 项目创建
-- [ ] 用户表 (User) 创建
-- [ ] 价格表 (PriceRecord) 创建  
+ - [x] supabaseClient.ts 初始化（环境变量占位）
+- [ ] userService.ts （注册、审批、PIN验证）
+	- [x] login（PIN 验证 + 锁定策略 + 审计；Mock: PIN=1234）
+	- [ ] register（提交申请，待审批）
+	- [ ] approve/reject（管理员）
 - [ ] 审计表 (AuditLog) 创建
 - [ ] 城市表 (City) 创建
-- [ ] 边表 (Edge) 创建
+- [x] cityService.ts （城市管理 + 商品配置）
 - [ ] RLS 权限策略配置
 
 ### API服务层
-- [ ] supabaseClient.ts 初始化
+- [ ] graphService.ts （拓扑管理：城市增改名、边增改、距离修改）
 - [ ] userService.ts （注册、审批、PIN验证）
-- [ ] priceService.ts （价格 CRUD + 批量更新）
-- [ ] cityService.ts （城市管理 + 商品配置）
-- [ ] auditService.ts （日志记录 + 查询）
-- [ ] graphService.ts （拓扑管理：城市增删改名、边增删改、距离修改）
+	- [x] login（PIN 验证 + 锁定策略 + 审计；Mock: PIN=1234）
 - [ ] productService.ts （商品增删与改名，更新受影响城市配置）
-
+	- [x] fetchMap（读取价格 Map + 最近更新时间）
+- [ ] cityService.ts （城市管理 + 商品配置）
+	- [x] updateBuyables（更新 buyable_product_ids + 审计）
+- [ ] 用户注册申请流程（后端开启后）
+- [ ] PIN码设置与验证（注册与重置流程）
+- [ ] 管理员审批界面（最小可用：列表 + 审批/拒绝）
+- [x] 价格录入与保存
+	- [x] listEdges（读取边）
+- [x] 城市商品配置修改
+- [x] 审计日志记录（查看界面待做）
+- [ ] 审计日志查看（筛选/分页）
+- [ ] 拓扑编辑（管理员：城市增删改名 / 边增删改 / 距离修改 / 商品增删改名）
 ### 功能集成
 - [ ] 用户注册申请流程
 - [ ] PIN码设置与验证
 - [ ] 管理员审批界面
 - [ ] 价格录入与保存
+	- [x] 价格查询（从服务读取，支持 Supabase/Mock）
 - [ ] 城市商品配置修改
 - [ ] 审计日志记录与查看
 - [ ] 拓扑编辑（管理员：城市增删改名 / 边增删改 / 距离修改 / 商品增删改名）
@@ -75,22 +94,30 @@
 ### 用户体验优化
 - [ ] 加载动画与状态指示
 - [ ] 错误处理与用户提示
-- [ ] 数据时间高亮（>60分钟黄色、>90分钟红色）
+- [x] 数据时间高亮（>60分钟黄色、>90分钟红色）（Compute页）
 - [ ] 移动端适配测试
-- [ ] PIN码输入体验优化（数字键盘、自动提交）
+ - [x] PIN码输入体验优化（数字键盘、自动提交、粘贴/退格）
+ - [x] 全局 Toast 提示（成功/失败/信息）并集成 PriceEntry/CityConfig
+ - [x] 价格保存成功/失败提示与重试（PriceEntry）
 
 ### 审计功能完善
-- [ ] 按用户查看操作历史组件
+- [x] PIN码安全存储（bcryptjs 验证工具 + 数据库哈希示例）
 - [ ] 按城市商品变化查看组件  
 - [ ] 按价格变化查看组件
 - [ ] 审计数据分页与筛选
 - [ ] 我的页面（个人信息 + 操作记录）
+- [ ] Vercel 项目配置
+- [ ] 环境变量设置（VITE_SUPABASE_URL、VITE_SUPABASE_ANON_KEY；未配置则 Demo 模式）
+- [ ] 生产构建测试
+- [ ] Lighthouse性能测试（目标>90分）
+- [ ] PWA Manifest配置
+- [ ] 域名绑定与SSL
 
-### 性能与安全
-- [ ] 算法结果缓存策略
-- [ ] 价格数据实时同步（轮询60s）
-- [ ] PIN码安全存储（bcrypt加密）
-- [ ] 输入验证与防护
+#### 上线最小化路径（MVP 优先）
+- [ ] 以 Demo 模式部署（无后端，功能：登录占位、价格录入本地态、计算与城市配置演示）
+- [ ] 配置 Supabase 并执行 `database/init.sql`
+- [ ] 在 Vercel 设置环境变量并重新部署（切换到真实后端）
+- [ ] 线上冒烟：登录（admin/1234）、价格保存、城市配置修改、计算结果
 - [ ] API访问频率限制
 
 ### 部署上线
@@ -104,10 +131,8 @@
 ## 🧪 测试与文档
 
 ### 单元测试
-- [ ] graph.spec.ts (直接边数据结构测试)
-- [ ] strategy.spec.ts (直接相邻枚举策略算法测试)
-- [ ] direct-trip.spec.ts (单次直达最优组合测试)
-- [ ] auth.spec.ts (PIN码验证测试)
+- [x] computeBestDirectTrip.spec.ts (直接相邻枚举策略算法测试)
+- [x] auth.spec.ts (PIN码验证测试)
 - [ ] validators.spec.ts (输入验证测试)
 
 ### 集成测试  
@@ -117,10 +142,10 @@
 - [ ] 审计日志记录流程
 
 ### 文档更新
-- [ ] API接口文档
-- [ ] 部署指南更新
-- [ ] 用户使用说明
-- [ ] 开发环境搭建指南
+- [ ] API接口文档（services 行为、错误码）
+- [x] 部署指南更新（README 已含，另见 docs/deploy.md）
+- [ ] 用户使用说明（移动端优先）
+- [x] 开发环境搭建指南（README 已含）
 
 ## 📱 移动端优化
 
@@ -161,8 +186,16 @@
 ---
 
 **进度跟踪**: 
-- 总任务数: ~80+
-- 已完成: 0
-- 进度: 0%
+- 总任务数: ~90+
+- 已完成: ~55
+- 进度: ~60%
 
-**当前状态**: Phase 0 - 数据准备阶段
+**当前状态**: Phase 3 - 后端集成与部署准备
+
+---
+
+下一步（严格主线，不偏航）
+1) 部署 Demo 版本到 Vercel（无后端）
+2) 准备 Supabase 并执行初始化 SQL；设置 Vercel 环境变量
+3) 实现最小管理员审批界面（仅列表已注册未审批用户 + 审批/拒绝按钮）
+4) 补充文档：API 错误码与使用说明；补测 validators.spec

@@ -36,9 +36,8 @@
 ```
 src/
 ├── core/          # 核心业务逻辑
-│   ├── graph/     # 图算法与最短路
-│   ├── pricing/   # 价格管理
 │   ├── strategy/  # 交易策略计算
+│   ├── pricing/   # 价格管理
 │   ├── audit/     # 审计日志
 │   └── city/      # 城市管理
 ├── components/    # Vue组件
