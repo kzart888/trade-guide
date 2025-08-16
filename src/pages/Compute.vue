@@ -1,33 +1,36 @@
 <template>
   <div class="p-3 space-y-2">
-    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-0.5 md:py-2 z-10">
-      <h1 class="text-sm md:text-lg font-600 leading-5 md:leading-6">计算</h1>
-      <button class="px-2 py-0.5 md:px-3 md:py-1.5 bg-blue-600 text-white rounded" @click="onCompute">开始计算</button>
+    <!-- Sticky top: title + timestamp + inputs (keep controls always visible) -->
+    <div class="sticky top-0 z-10 bg-gray-50/90 backdrop-blur pb-2">
+      <div class="flex items-center justify-between py-0.5 md:py-2">
+        <h1 class="text-sm md:text-lg font-600 leading-5 md:leading-6">计算</h1>
+        <button class="px-2 py-0.5 md:px-3 md:py-1.5 bg-blue-600 text-white rounded" @click="onCompute">开始计算</button>
+      </div>
+      <div v-if="lastUpdatedAt" class="text-xs">
+        <span :class="stalenessClass">价格更新时间：{{ new Date(lastUpdatedAt).toLocaleString() }} · {{ minutesAgo }} 分钟前</span>
+      </div>
+      <div class="space-y-3">
+        <label class="flex items-center justify-between gap-2">
+          <span class="text-sm whitespace-nowrap">起点城市</span>
+          <select v-model="originCityId" class="border rounded px-2 py-1 w-40 min-w-0">
+            <option v-for="c in Object.values(cities)" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+        </label>
+        <label class="flex items-center justify-between gap-2">
+          <span class="text-sm whitespace-nowrap">体力</span>
+          <input v-model.number="stamina" type="number" inputmode="numeric" class="border rounded px-2 py-1 w-28 text-right" />
+        </label>
+        <label class="flex items-center justify-between gap-2">
+          <span class="text-sm whitespace-nowrap">载重</span>
+          <input v-model.number="maxWeight" type="number" inputmode="numeric" class="border rounded px-2 py-1 w-28 text-right" />
+        </label>
+      </div>
     </div>
-    <div v-if="lastUpdatedAt" class="text-xs">
-      <span :class="stalenessClass">价格更新时间：{{ new Date(lastUpdatedAt).toLocaleString() }} · {{ minutesAgo }} 分钟前</span>
-    </div>
-    <div class="space-y-2">
-      <label class="flex items-center justify-between gap-2">
-        <span class="text-sm whitespace-nowrap">起点城市</span>
-        <select v-model="originCityId" class="border rounded px-2 py-1 w-40 min-w-0">
-          <option v-for="c in Object.values(cities)" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-      </label>
-      <label class="flex items-center justify-between gap-2">
-        <span class="text-sm whitespace-nowrap">体力</span>
-        <input v-model.number="stamina" type="number" inputmode="numeric" class="border rounded px-2 py-1 w-28 text-right" />
-      </label>
-      <label class="flex items-center justify-between gap-2">
-        <span class="text-sm whitespace-nowrap">载重</span>
-        <input v-model.number="maxWeight" type="number" inputmode="numeric" class="border rounded px-2 py-1 w-28 text-right" />
-      </label>
-    </div>
-    
 
-    <div v-if="plans.length" class="mt-2 bg-white border rounded">
-      <div class="px-3 py-1.5 font-600 border-b text-sm">按商品的最佳方案（按利润排序）</div>
-      <div v-for="(p,idx) in plans" :key="p.productId" :class="['px-3 py-1.5 border-b last:border-b-0 text-sm grid grid-cols-2 gap-y-1', idx===0 ? 'bg-amber-50' : '']">
+    <!-- Results: scroll inside the remaining viewport height to avoid page blank scroll -->
+    <div v-if="plans.length" class="mt-1.5 bg-white border rounded overflow-auto max-h-[calc(100svh-240px)]">
+      <div class="px-3 py-1 font-600 border-b text-sm">按商品的最佳方案（按利润排序）</div>
+      <div v-for="(p,idx) in plans" :key="p.productId" :class="['px-3 py-1 border-b last:border-b-0 text-sm grid grid-cols-2 gap-y-1', idx===0 ? 'bg-amber-50' : '']">
         <div>商品：{{ products[p.productId]?.name }}</div>
         <div>目的地：{{ cities[p.toCityId]?.name }}</div>
         <div>最多可买：{{ p.quantity }}</div>
