@@ -73,10 +73,31 @@ export const userService = {
       return { ok: true };
     }
     const hashed = await hashPin(pin);
-    const { error } = await supabase
-      .from('users')
-      .insert({ id: username, username, pin_hash: hashed, approved: false, is_admin: false });
-    if (error) throw error;
+      const insert = await supabase
+        .from('users')
+        .insert({ id: username, username, pin_hash: hashed, approved: false, is_admin: false });
+      if (insert.error) {
+        const msg = String(insert.error.message || '');
+        // 409 duplicate: if existing row is unapproved, refresh its pin and keep waiting
+        if ((insert as any).status === 409 || msg.includes('duplicate') || (insert.error as any).code === '23505') {
+          const existing = await supabase
+            .from('users')
+            .select('id, approved')
+            .eq('username', username)
+            .maybeSingle();
+          if (!existing.error && existing.data && existing.data.approved === false) {
+            const upd = await supabase
+              .from('users')
+              .update({ pin_hash: hashed, approved: false })
+              .eq('id', existing.data.id);
+            if (upd.error) throw upd.error;
+          } else {
+            throw insert.error;
+          }
+        } else {
+          throw insert.error;
+        }
+      }
     try {
       await auditService.log(username, 'user_register', 'user', username, null, { username }, 'user registration submitted');
     } catch {}
@@ -92,7 +113,7 @@ export const userService = {
     }
     const { data, error } = await supabase
       .from('users')
-      .select('id, username, created_at, approved')
+      .select('id, username, created_at')
       .eq('approved', false)
       .order('created_at', { ascending: true });
     if (error) throw error;
@@ -106,13 +127,31 @@ export const userService = {
         { id: 'user_b', username: 'user_b', approved: false, is_admin: false },
       ];
     }
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, username, approved, is_admin, created_at')
-      .order('created_at', { ascending: true });
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, approved, is_admin, created_at, failed_attempts, locked_until')
+        .eq('approved', true)
+        .order('created_at', { ascending: true });
     if (error) throw error;
     return (data ?? []) as any;
   },
+    async unlock(targetUserId: string): Promise<void> {
+      if (!supabase) return;
+      let { data, error } = await supabase
+        .from('users')
+        .update({ failed_attempts: 0, locked_until: null })
+        .eq('id', targetUserId)
+        .select('id');
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        const res2 = await supabase
+          .from('users')
+          .update({ failed_attempts: 0, locked_until: null })
+          .eq('username', targetUserId)
+          .select('id');
+        if (res2.error) throw res2.error;
+      }
+    },
   async setAdmin(targetUserId: string, isAdmin: boolean): Promise<void> {
     if (!supabase) return; // no-op in demo
     // Try by id; if no rows affected, try by username

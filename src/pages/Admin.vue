@@ -35,12 +35,17 @@
               <div class="font-600">{{ u.username }}
                 <span v-if="u.is_admin" class="ml-2 text-xs px-1 rounded bg-amber-100 text-amber-700">管理员</span>
                 <span v-if="u.username==='admin'" class="ml-1 text-xs px-1 rounded bg-indigo-100 text-indigo-700">创建者</span>
-                <span v-if="!u.approved" class="ml-1 text-xs px-1 rounded bg-gray-200 text-gray-700">未审批</span>
+                <span v-if="(u as any).locked_until && new Date((u as any).locked_until) > new Date()" class="ml-1 text-xs px-1 rounded bg-red-100 text-red-700">已锁定</span>
               </div>
               <div class="text-xs text-gray-500">{{ u.created_at ? new Date(u.created_at).toLocaleString() : '' }}</div>
             </div>
             <div class="flex items-center gap-2">
               <button class="px-2 py-1 border rounded" :disabled="loading || u.username==='admin' || !isCreator" @click="toggleAdmin(u)">{{ u.is_admin ? '取消管理员' : '设为管理员' }}</button>
+              <button
+                class="px-2 py-1 border rounded"
+                :disabled="loading || !(isAdmin||isCreator) || !(u as any).locked_until || new Date((u as any).locked_until) <= new Date()"
+                @click="unlock(u)"
+              >解除锁定</button>
               <button
                 class="px-2 py-1 border rounded"
                 :disabled="loading || !(isAdmin||isCreator) || (u.username==='admin' && !isCreator)"
@@ -72,7 +77,7 @@ const canManage = computed(() => isAdmin.value || isCreator.value);
 const loading = ref(false);
 const error = ref('');
 const pending = ref<Array<{ id: string; username: string; created_at?: string }>>([]);
-const all = ref<Array<{ id: string; username: string; approved: boolean; is_admin: boolean; created_at?: string }>>([]);
+const all = ref<Array<{ id: string; username: string; approved: boolean; is_admin: boolean; created_at?: string; locked_until?: string; failed_attempts?: number }>>([]);
 
 async function load() {
   loading.value = true;
@@ -121,7 +126,10 @@ async function deleteUser(u: { id: string; username: string }) {
   if (!ok) return;
   try {
     await userService.deleteUser(u.id);
-    await load();
+  // Remove from local lists immediately, then refresh
+  pending.value = pending.value.filter(p => p.id !== u.id && p.username !== u.username);
+  all.value = all.value.filter(a => a.id !== u.id && a.username !== u.username);
+  await load();
     ui.success('用户已删除/禁用登录');
   } catch (e: any) {
     ui.error(e?.message || '删除失败');
@@ -145,6 +153,17 @@ async function resetPin(u: { id: string; username: string }) {
     ui.success('已重置 PIN');
   } catch (e: any) {
     ui.error(e?.message || '重置失败');
+  }
+}
+
+async function unlock(u: { id: string; username: string }) {
+  if (!(isAdmin.value || isCreator.value)) return;
+  try {
+    await userService.unlock(u.id);
+    await load();
+    ui.success('已解除锁定');
+  } catch (e: any) {
+    ui.error(e?.message || '解除失败');
   }
 }
 </script>
