@@ -390,8 +390,15 @@ export const cityService = {
       // mock price map omitted here (read-only mock)
       return;
     }
-  const { error } = await supabase.from('cities').delete().eq('id', cityId);
-    if (error) throw error; // edges & price_records cascade via FK
+  // Explicitly delete dependents to avoid RLS blocking cascades
+  const delPrices = await supabase.from('price_records').delete().eq('city_id', cityId);
+  if (delPrices.error) throw delPrices.error;
+  const delEdges1 = await supabase.from('edges').delete().eq('from_city_id', cityId);
+  if (delEdges1.error) throw delEdges1.error;
+  const delEdges2 = await supabase.from('edges').delete().eq('to_city_id', cityId);
+  if (delEdges2.error) throw delEdges2.error;
+  const res = await supabase.from('cities').delete().eq('id', cityId);
+  if (res.error) throw res.error;
   },
 };
 
