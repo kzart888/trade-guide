@@ -15,7 +15,8 @@
 import { RouterLink } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useUserStore } from '@/stores/user';
+import { computed } from 'vue';
 const user = useUserStore();
 const { isAdmin, isCreator } = storeToRefs(user);
-const canAdmin = (isAdmin as any).value || (isCreator as any).value;
+const canAdmin = computed(() => (isAdmin.value || (isCreator as any).value));
 </script>
