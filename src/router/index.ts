@@ -6,6 +6,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/prices', component: () => import('@/pages/PriceEntry.vue') },
   { path: '/compute', component: () => import('@/pages/Compute.vue') },
   { path: '/city-config', component: () => import('@/pages/CityConfig.vue') },
+  { path: '/distance-config', component: () => import('@/pages/DistanceConfig.vue') },
   { path: '/admin', component: () => import('@/pages/Admin.vue') },
   { path: '/me', component: () => import('@/pages/Me.vue') },
   { path: '/login', component: () => import('@/pages/Login.vue') },

@@ -1,5 +1,14 @@
 <template>
-  <div class="p-4 space-y-4">
+  <div class="p-4 space-y-4 pb-20">
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
+      <h1 class="text-lg font-600">商品配置（每城 3 个可买商品）</h1>
+      <div class="flex items-center gap-2 text-sm">
+        <input v-model.trim="newProduct.id" class="border rounded px-2 py-1 w-28" placeholder="商品ID" />
+        <input v-model.trim="newProduct.name" class="border rounded px-2 py-1 w-28" placeholder="商品名" />
+        <input v-model.number="newProduct.weight" type="number" min="1" inputmode="numeric" class="border rounded px-2 py-1 w-24" placeholder="重量" />
+        <button class="px-2 py-1 border rounded" :disabled="!canAddProduct" @click="addProduct">新增商品</button>
+      </div>
+    </div>
     <h1 class="text-lg font-600">商品配置（每城 3 个可买商品）</h1>
     <div class="text-xs text-gray-500">规则：每个城市必须配置且仅能配置 3 个商品，且不可重复。</div>
 
@@ -30,12 +39,14 @@
     </div>
   </div>
   
+  </div>
+
 </template>
 
 <script setup lang="ts">
 import { reactive, computed, onMounted } from 'vue';
 import { useCityStore } from '@/stores';
-import { cityService } from '@/services';
+import { cityService, productService } from '@/services';
 import type { City } from '@/core/types/domain';
 import { useUiStore } from '@/stores/ui';
 const ui = useUiStore();
@@ -43,6 +54,8 @@ const ui = useUiStore();
 const cityStore = useCityStore();
 const cityList = computed(() => Object.values(cityStore.cities));
 const productList = computed(() => Object.values(cityStore.products));
+const canAddProduct = computed(() => !!newProduct.id && !!newProduct.name && (newProduct.weight || 0) > 0 && !productList.value.find(p => p.id === newProduct.id));
+const newProduct = reactive<{ id: string; name: string; weight: number | null }>({ id: '', name: '', weight: null });
 
 // 本地编辑态
 const edits = reactive<Record<string, [string, string, string]>>({});
@@ -65,6 +78,17 @@ function onChange(cityId: string, idx: number, e: Event) {
   arr[idx] = value;
   edits[cityId] = arr;
   status[cityId] = 'idle';
+}
+
+async function addProduct() {
+  try {
+    await productService.add({ id: newProduct.id, name: newProduct.name, weight: Number(newProduct.weight) });
+    cityStore.products = await productService.list();
+    Object.assign(newProduct, { id: '', name: '', weight: null });
+    ui.success('商品已新增');
+  } catch (e: any) {
+    ui.error(e?.message || '新增失败');
+  }
 }
 
 function isDisabled(cityId: string, idx: number, pid: string) {

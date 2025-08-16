@@ -218,6 +218,14 @@ export const cityService = {
     }
     return out;
   },
+  async rename(cityId: string, newName: string): Promise<void> {
+    if (!supabase) {
+      if ((mockCities as any)[cityId]) (mockCities as any)[cityId].name = newName;
+      return;
+    }
+    const { error } = await supabase.from('cities').update({ name: newName }).eq('id', cityId);
+    if (error) throw error;
+  },
 };
 
 export const auditService = {
@@ -256,6 +264,38 @@ export const graphService = {
     if (error) throw error;
     return (data ?? []).map((e: any) => ({ fromCityId: e.from_city_id, toCityId: e.to_city_id, distance: e.distance }));
   },
+  async upsertEdges(rows: Array<{ fromCityId: string; toCityId: string; distance: number }>): Promise<void> {
+    if (!supabase) {
+      // demo: update mockEdges in-memory (best-effort)
+      for (const r of rows) {
+        const i = (mockEdges as any).findIndex((e: any) => e.fromCityId === r.fromCityId && e.toCityId === r.toCityId);
+        if (i >= 0) (mockEdges as any)[i].distance = r.distance;
+        else (mockEdges as any).push({ fromCityId: r.fromCityId, toCityId: r.toCityId, distance: r.distance });
+      }
+      return;
+    }
+    const payload = rows.map(r => ({ from_city_id: r.fromCityId, to_city_id: r.toCityId, distance: r.distance }));
+    const { error } = await supabase
+      .from('edges')
+      .upsert(payload, { onConflict: 'from_city_id,to_city_id' });
+    if (error) throw error;
+  },
+  async deleteEdges(rows: Array<{ fromCityId: string; toCityId: string }>): Promise<void> {
+    if (!supabase) {
+      for (const r of rows) {
+        const i = (mockEdges as any).findIndex((e: any) => e.fromCityId === r.fromCityId && e.toCityId === r.toCityId);
+        if (i >= 0) (mockEdges as any).splice(i, 1);
+      }
+      return;
+    }
+    for (const r of rows) {
+      const { error } = await supabase.from('edges')
+        .delete()
+        .eq('from_city_id', r.fromCityId)
+        .eq('to_city_id', r.toCityId);
+      if (error) throw error;
+    }
+  },
 };
 
 export const productService = {
@@ -271,5 +311,29 @@ export const productService = {
       out[p.id] = { id: p.id, name: p.name, weight: p.weight };
     }
     return out;
+  },
+  async add(product: { id: string; name: string; weight: number }): Promise<void> {
+    if (!supabase) {
+      (mockProducts as any)[product.id] = { ...product } as any;
+      return;
+    }
+    const { error } = await supabase.from('products').insert({ id: product.id, name: product.name, weight: product.weight });
+    if (error) throw error;
+  },
+  async rename(productId: string, newName: string): Promise<void> {
+    if (!supabase) {
+      if ((mockProducts as any)[productId]) (mockProducts as any)[productId].name = newName;
+      return;
+    }
+    const { error } = await supabase.from('products').update({ name: newName }).eq('id', productId);
+    if (error) throw error;
+  },
+  async remove(productId: string): Promise<void> {
+    if (!supabase) {
+      delete (mockProducts as any)[productId];
+      return;
+    }
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) throw error;
   },
 };
