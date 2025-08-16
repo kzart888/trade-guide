@@ -47,6 +47,8 @@ const errorHint = computed(() => {
 
 async function submit() {
   try {
+  // Clear any stale session before login attempt
+  store.logout();
     await store.login(username.value, pin.value);
     try { localStorage.setItem('tg_username', username.value); } catch {}
     router.replace('/compute');

@@ -115,3 +115,15 @@ supabase start
 - ERROR: 42501: permission denied to set parameter "app.jwt_secret"
    - 原因：在 Supabase 托管环境中该参数由平台托管，普通角色无权设置
    - 处理：我们已移除 `database/init.sql` 中的该设置，直接重新执行剩余 SQL 即可
+
+---
+
+## 一键填充样例价格（让“计算”马上有方案）
+
+若城市/商品已存在但没有价格，计算页会显示“暂无可行方案”。可以运行我们提供的样例价格脚本，立刻获得若干可盈利的直达路线：
+
+1) 打开 Supabase 控制台 → SQL Editor
+2) 打开仓库文件 `database/seed-prices.sql`，将内容粘贴执行
+   - 该脚本会用 upsert 方式为多组相邻城市写入成对的买/卖价
+   - 可重复执行，已有价格不会被覆盖为 NULL
+3) 回到页面，等待 60s 轮询或手动刷新，即可在“计算”页看到方案

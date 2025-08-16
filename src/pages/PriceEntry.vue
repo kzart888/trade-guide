@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 space-y-3">
+  <div class="p-4 space-y-3 pb-20">
     <div class="flex items-center justify-between">
       <h1 class="text-lg font-600">价格录入</h1>
       <div class="text-xs text-gray-500">
@@ -23,8 +23,13 @@
       <div class="text-gray-500">卖出价</div>
       <template v-for="p in productListSorted" :key="p.id">
         <div class="truncate">{{ p.name }}</div>
-        <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1"
-          :value="buyPrice(currentCityId,p.id)" @input="onBuy(p.id, $event)" />
+        <template v-if="isBuyable(p.id)">
+          <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1"
+            :value="buyPrice(currentCityId,p.id)" @input="onBuy(p.id, $event)" />
+        </template>
+        <template v-else>
+          <input type="number" class="border rounded px-2 py-1 opacity-50" :value="''" disabled placeholder="—" />
+        </template>
         <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1"
           :value="sellPrice(currentCityId,p.id)" @input="onSell(p.id, $event)" />
       </template>
@@ -55,7 +60,7 @@ import { useUiStore } from '@/stores/ui';
 const cityStore = useCityStore();
 const priceStore = usePriceStore();
 
-const currentCityId = computed(() => cityStore.currentCityId || 'c1');
+const currentCityId = computed(() => cityStore.currentCityId);
 const productList = computed(() => Object.values(cityStore.products));
 const productListSorted = computed(() => {
   const list = productList.value.slice();
@@ -64,6 +69,13 @@ const productListSorted = computed(() => {
   const buyables = new Set(city.buyableProductIds);
   return list.sort((a, b) => Number(!buyables.has(a.id)) - Number(!buyables.has(b.id)));
 });
+const buyableSet = computed(() => {
+  const city = cityStore.cities[cityStore.currentCityId];
+  return new Set(city ? city.buyableProductIds : []);
+});
+function isBuyable(pid: string) {
+  return buyableSet.value.has(pid);
+}
 const dirty = computed(() => priceStore.dirty);
 const saving = computed(() => priceStore.saving);
 const saveStatus = ref<'idle' | 'success' | 'error'>('idle');
@@ -79,6 +91,7 @@ function sellPrice(cityId: string, pid: string) {
 }
 
 function onBuy(pid: string, e: Event) {
+  if (!isBuyable(pid)) return; // ignore edits for non-buyable products to avoid data冗余
   const v = (e.target as HTMLInputElement).value;
   const n = v === '' ? null : Math.max(0, Number(v));
   priceStore.setPrice(currentCityId.value, pid, { buyPrice: n });

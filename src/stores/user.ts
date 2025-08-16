@@ -11,6 +11,10 @@ export const useUserStore = defineStore('user', {
   }),
   actions: {
     async login(username: string, pin: string) {
+  // reset state before attempting login
+  this.username = '';
+  this.approved = false;
+  this.isAdmin = false;
       this.loggingIn = true;
       this.error = '';
       try {

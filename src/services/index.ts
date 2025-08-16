@@ -10,10 +10,10 @@ export const userService = {
   async login(username: string, pin: string): Promise<{ username: string; approved: boolean; isAdmin: boolean }>{
     if (!validatePinFormat(pin)) throw new Error('PIN_INVALID');
     if (!supabase) {
-      // Mock mode: accept any username with pin '1234'
-  if (pin !== '1234') throw new Error('PIN_INVALID');
-  // Treat username 'admin' as admin in demo mode
-  return { username, approved: true, isAdmin: username.toLowerCase() === 'admin' };
+      // Mock mode: only accept pin '1234'
+      if (pin !== '1234') throw new Error('PIN_INVALID');
+      // Demo: username 'admin' has admin rights
+      return { username, approved: true, isAdmin: username.toLowerCase() === 'admin' };
     }
 
     // Fetch user (approved users are selectable per RLS). If not found, treat as not approved or not exists.
