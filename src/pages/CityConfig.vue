@@ -5,35 +5,35 @@
 
   <div class="space-y-3">
       <div v-for="c in cityList" :key="c.id" class="p-3 bg-white rounded border">
-        <div class="flex items-center justify-between mb-2">
-          <div class="font-600">{{ c.name }}</div>
-          <div class="text-xs" role="status">
+        <!-- Row 1: City title + status + actions (single row, larger tap area) -->
+        <div class="flex items-start justify-between gap-2 py-2">
+          <div class="font-600 text-base">{{ c.name }}</div>
+          <div class="flex items-center gap-2 flex-wrap justify-end text-xs" role="status">
             <span v-if="saving[c.id]" class="text-blue-600">保存中…</span>
             <span v-else-if="status[c.id]==='success'" class="text-green-600">已保存</span>
             <span v-else-if="status[c.id]==='error'" class="text-red-600">保存失败：{{ errorMsg[c.id] || '网络错误' }}</span>
+            <span v-if="!isValid(c.id)" class="text-red-600">需选择 3 个且不重复</span>
+            <button class="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="saving[c.id] || !isValid(c.id) || isUnchanged(c.id)" @click="save(c.id)">保存</button>
+            <button class="px-3 py-1.5 bg-gray-100 rounded" :disabled="saving[c.id]" @click="reset(c.id)">重置</button>
+            <button v-if="status[c.id]==='error'" class="px-2 py-1 text-xs bg-red-50 text-red-700 rounded border border-red-200" :disabled="saving[c.id]" @click="save(c.id)">重试</button>
           </div>
         </div>
-  <div class="grid grid-cols-3 gap-2">
+        <!-- Row 2: selectors -->
+        <div class="grid grid-cols-3 gap-2">
           <select v-for="(pid, idx) in edits[c.id]" :key="idx" class="border rounded px-2 py-1" :value="pid" @change="onChange(c.id, idx, $event)">
             <option v-for="p in productList" :key="p.id" :value="p.id" :disabled="isDisabled(c.id, idx, p.id)">
               {{ p.name }}
             </option>
           </select>
         </div>
-  <div class="mt-3 flex items-center gap-2">
-          <button class="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="saving[c.id] || !isValid(c.id) || isUnchanged(c.id)" @click="save(c.id)">保存</button>
-          <button class="px-3 py-1.5 bg-gray-100 rounded" :disabled="saving[c.id]" @click="reset(c.id)">重置</button>
-          <button v-if="status[c.id]==='error'" class="px-2 py-1 text-xs bg-red-50 text-red-700 rounded border border-red-200" :disabled="saving[c.id]" @click="save(c.id)">重试</button>
-        </div>
-        <div v-if="!isValid(c.id)" class="mt-2 text-xs text-red-600">必须选择 3 个且不可重复</div>
       </div>
     </div>
     <div class="p-3 bg-white border rounded">
       <div class="text-sm font-600 mb-2">商品管理</div>
       <div class="space-y-2 text-sm">
         <div class="flex items-center gap-2">
-          <input v-model.trim="newProduct.name" class="border rounded px-2 py-1 w-40" placeholder="商品名" />
-          <input v-model.number="newProduct.weight" type="number" min="1" inputmode="numeric" class="border rounded px-2 py-1 w-28" placeholder="重量" />
+          <input v-model.trim="newProduct.name" class="border rounded px-2 py-1 w-28" placeholder="商品名" />
+          <input v-model.number="newProduct.weight" type="number" min="1" inputmode="numeric" class="border rounded px-2 py-1 w-20" placeholder="重量" />
           <button class="px-2 py-1 border rounded" :disabled="!canAddProduct" @click="addProduct">新增</button>
         </div>
         <div class="divide-y">
