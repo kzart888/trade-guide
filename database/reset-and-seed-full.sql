@@ -21,11 +21,14 @@ VALUES (
   is_admin = true;
 
 -- 1) Reset application data (preserve admin)
-TRUNCATE TABLE price_records RESTART IDENTITY;
-TRUNCATE TABLE edges RESTART IDENTITY;
-TRUNCATE TABLE cities RESTART IDENTITY;
-TRUNCATE TABLE products RESTART IDENTITY;
-TRUNCATE TABLE audit_logs RESTART IDENTITY;
+-- Use single TRUNCATE with CASCADE to satisfy FK constraints between these tables
+TRUNCATE TABLE
+  price_records,
+  edges,
+  cities,
+  products,
+  audit_logs
+RESTART IDENTITY CASCADE;
 DELETE FROM users WHERE id <> 'admin';
 
 -- 2) Seed products (25)
@@ -112,7 +115,7 @@ WITH c AS (
 ), p AS (
   SELECT id AS product_id, weight, (50 + weight) AS base_price FROM products
 ), buyables AS (
-  SELECT city_id, unnest(buyable_product_ids) AS product_id FROM cities
+  SELECT id AS city_id, unnest(buyable_product_ids) AS product_id FROM cities
 ), grid AS (
   SELECT c.city_id, c.ci, p.product_id, p.base_price
   FROM c CROSS JOIN p
