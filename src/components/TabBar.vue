@@ -1,5 +1,5 @@
 <template>
-  <nav class="h-12 border-t bg-white flex items-center justify-around text-sm">
+  <nav class="h-12 border-t bg-white flex items-center justify-around text-sm fixed bottom-0 left-0 right-0 z-20 shadow-sm pb-safe">
     <RouterLink to="/prices" class="px-2 py-1">价格</RouterLink>
     <RouterLink to="/compute" class="px-2 py-1">计算</RouterLink>
     <RouterLink to="/city-config" class="px-2 py-1">商品配置</RouterLink>

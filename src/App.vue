@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50">
+  <div class="min-h-screen flex flex-col bg-gray-50 pb-16">
   <div v-if="!hasBackend" class="text-xs text-white bg-amber-600 text-center py-1">演示模式（未连接后端）：数据来自本地 Mock，保存为本地无效操作</div>
     <router-view class="flex-1" />
     <TabBar />
@@ -22,3 +22,8 @@ onUnmounted(() => {
   priceStore.stopPolling();
 });
 </script>
+
+<style>
+/* iOS safe-area padding helper used by TabBar */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+</style>
