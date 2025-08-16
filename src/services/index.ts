@@ -127,10 +127,10 @@ export const priceService = {
       product_id: r.productId,
       buy_price: r.buyPrice,
       sell_price: r.sellPrice,
-      updated_by: r.updatedBy,
+      updated_by: opts?.userId ?? r.updatedBy ?? null,
     }));
 
-    const { error } = await supabase
+  const { error } = await supabase
       .from('price_records')
       .upsert(rows, { onConflict: 'city_id,product_id' });
     if (error) throw error;

@@ -12,10 +12,13 @@ import TabBar from '@/components/TabBar.vue';
 import ToastHost from '@/components/ToastHost.vue';
 import { onMounted, onUnmounted } from 'vue';
 import { usePriceStore } from '@/stores';
+import { useUserStore } from '@/stores/user';
 import { hasBackend } from '@/services/supabaseClient';
 
 const priceStore = usePriceStore();
+const userStore = useUserStore();
 onMounted(() => {
+  userStore.hydrate();
   priceStore.startPolling(60000);
 });
 onUnmounted(() => {

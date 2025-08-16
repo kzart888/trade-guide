@@ -29,6 +29,17 @@
       <div>总利润: {{ plan.totalProfit }}</div>
       <div>距离: {{ plan.distance }}</div>
     </div>
+    <div v-if="plans.length" class="mt-3 bg-white border rounded">
+      <div class="px-3 py-2 font-600 border-b">按商品的最佳方案（已按利润排序）</div>
+      <div v-for="p in plans" :key="p.productId" class="px-3 py-2 border-b last:border-b-0 text-sm grid grid-cols-2 gap-y-1">
+        <div>商品：{{ products[p.productId]?.name }}</div>
+        <div>目的地：{{ cities[p.toCityId]?.name }}</div>
+        <div>最多可买：{{ p.quantity }}</div>
+        <div>载重需要：{{ products[p.productId]?.weight * p.quantity }}</div>
+        <div>距离：{{ p.distance }}</div>
+        <div>总利润：{{ p.totalProfit }}</div>
+      </div>
+    </div>
     <div v-else class="text-gray-500">暂无可行方案</div>
   </div>
 </template>
@@ -36,7 +47,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useCityStore, useGraphStore, usePriceStore } from '@/stores';
-import { computeBestDirectTrip } from '@/core/strategy/computeBestDirectTrip';
+import { computeBestDirectTrip, computeTopPlansPerBuyable } from '@/core/strategy/computeBestDirectTrip';
 import { productService, cityService, graphService, priceService } from '@/services';
 import { useUiStore } from '@/stores/ui';
 import { humanizeError } from '@/services/errors';
@@ -65,6 +76,7 @@ const stamina = ref(20);
 const maxWeight = ref(100);
 
 const plan = ref<ReturnType<typeof computeBestDirectTrip> | null>(null);
+const plans = ref<ReturnType<typeof computeTopPlansPerBuyable>>([]);
 const ui = useUiStore();
 
 onMounted(async () => {
@@ -82,7 +94,7 @@ onMounted(async () => {
 });
 
 function onCompute() {
-  plan.value = computeBestDirectTrip({
+  const params = {
     originCityId: originCityId.value,
     stamina: stamina.value,
     maxWeight: maxWeight.value,
@@ -90,7 +102,9 @@ function onCompute() {
     products: cityStore.products,
     edges: graphStore.edges,
     priceMap: priceStore.priceMap,
-  });
+  } as const;
+  plan.value = computeBestDirectTrip(params);
+  plans.value = computeTopPlansPerBuyable(params);
 }
 </script>
 

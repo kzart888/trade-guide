@@ -117,3 +117,60 @@ export function computeBestDirectTrip(params: ComputeBestDirectTripParams): Trad
 
   return candidatePlans[0];
 }
+
+/**
+ * Compute the best plan per buyable product at the origin, returning up to 3 entries
+ * sorted by totalProfit desc, then profitPerStamina desc, then distance asc.
+ */
+export function computeTopPlansPerBuyable(params: ComputeBestDirectTripParams): TradePlan[] {
+  const { originCityId, stamina, maxWeight, cities, products, edges, priceMap } = params;
+  const originCity = cities[originCityId];
+  if (!originCity) return [];
+  const originPrices = priceMap.get(originCityId);
+  if (!originPrices) return [];
+
+  const reachableNeighbors = edges.filter(e => e.fromCityId === originCityId && e.distance <= stamina);
+  const bestByProduct = new Map<string, TradePlan>();
+
+  for (const productId of originCity.buyableProductIds) {
+    const product = products[productId];
+    const op = originPrices.get(productId);
+    if (!product || !op?.buyPrice) continue;
+    const buyPrice = op.buyPrice;
+    const quantity = Math.floor(maxWeight / product.weight);
+    if (quantity === 0) continue;
+
+    for (const edge of reachableNeighbors) {
+      const destPrices = priceMap.get(edge.toCityId)?.get(productId);
+      if (!destPrices?.sellPrice || destPrices.sellPrice <= buyPrice) continue;
+      const unitProfit = destPrices.sellPrice - buyPrice;
+      const totalProfit = unitProfit * quantity;
+      const plan: TradePlan = {
+        productId,
+        fromCityId: originCityId,
+        toCityId: edge.toCityId,
+        quantity,
+        unitProfit,
+        totalProfit,
+        distance: edge.distance,
+        profitPerStamina: totalProfit / edge.distance,
+      };
+      const prev = bestByProduct.get(productId);
+      if (!prev
+        || plan.totalProfit > prev.totalProfit
+        || (plan.totalProfit === prev.totalProfit && plan.profitPerStamina > prev.profitPerStamina)
+        || (plan.totalProfit === prev.totalProfit && plan.profitPerStamina === prev.profitPerStamina && plan.distance < prev.distance)
+      ) {
+        bestByProduct.set(productId, plan);
+      }
+    }
+  }
+
+  const out = Array.from(bestByProduct.values());
+  out.sort((a, b) => {
+    if (a.totalProfit !== b.totalProfit) return b.totalProfit - a.totalProfit;
+    if (a.profitPerStamina !== b.profitPerStamina) return b.profitPerStamina - a.profitPerStamina;
+    return a.distance - b.distance;
+  });
+  return out;
+}

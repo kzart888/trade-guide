@@ -8,8 +8,27 @@ export const useUserStore = defineStore('user', {
     isAdmin: false as boolean,
     loggingIn: false as boolean,
     error: '' as string,
+    hydrated: false as boolean,
   }),
   actions: {
+    hydrate() {
+      if (this.hydrated) return;
+      try {
+        const raw = localStorage.getItem('tg_session_v1');
+        if (raw) {
+          const sess = JSON.parse(raw) as { username: string; approved: boolean; isAdmin: boolean; ts: number };
+          const maxAgeMs = 30 * 24 * 60 * 60 * 1000; // 30 days
+          if (Date.now() - (sess.ts || 0) < maxAgeMs) {
+            this.username = sess.username;
+            this.approved = !!sess.approved;
+            this.isAdmin = !!sess.isAdmin;
+          } else {
+            localStorage.removeItem('tg_session_v1');
+          }
+        }
+      } catch {}
+      this.hydrated = true;
+    },
     async login(username: string, pin: string) {
   // reset state before attempting login
   this.username = '';
@@ -22,6 +41,9 @@ export const useUserStore = defineStore('user', {
         this.username = res.username;
         this.approved = res.approved;
         this.isAdmin = res.isAdmin;
+        try {
+          localStorage.setItem('tg_session_v1', JSON.stringify({ username: this.username, approved: this.approved, isAdmin: this.isAdmin, ts: Date.now() }));
+        } catch {}
       } catch (e: any) {
         this.error = e?.message || String(e) || '';
         throw e;
@@ -33,6 +55,7 @@ export const useUserStore = defineStore('user', {
       this.username = '';
       this.approved = false;
       this.isAdmin = false;
+      try { localStorage.removeItem('tg_session_v1'); } catch {}
     },
   },
 });

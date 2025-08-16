@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import type { City, Product, Edge, PriceMap, PriceRecord } from '@/core/types/domain';
 import { priceService } from '@/services';
+import { useUserStore } from './user';
 
 export const useGraphStore = defineStore('graph', {
   state: () => ({
@@ -48,7 +49,7 @@ export const usePriceStore = defineStore('price', {
       }
       this.dirty = true;
     },
-    async saveBatch(cityId: string) {
+  async saveBatch(cityId: string) {
       try {
         this.saving = true;
         const cityPrices = this.priceMap.get(cityId) ?? new Map();
@@ -60,10 +61,11 @@ export const usePriceStore = defineStore('price', {
             buyPrice: rec?.buyPrice ?? null,
             sellPrice: rec?.sellPrice ?? null,
             updatedAt: new Date(),
-            updatedBy: 'local',
+      updatedBy: useUserStore().username || 'admin',
           });
         }
-        await priceService.saveBatch(cityId, records);
+    const userId = useUserStore().username || null;
+    await priceService.saveBatch(cityId, records, { userId: userId ?? undefined });
         this.dirty = false;
         // After save, re-fetch to sync data/time from server
         await this.refresh();
