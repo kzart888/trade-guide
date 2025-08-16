@@ -73,31 +73,31 @@ export const userService = {
       return { ok: true };
     }
     const hashed = await hashPin(pin);
-      const insert = await supabase
+    // First, try to refresh PIN on an existing unapproved record to avoid 409
+    let upd = await supabase
+      .from('users')
+      .update({ pin_hash: hashed, approved: false, failed_attempts: 0, locked_until: null })
+      .eq('id', username)
+      .eq('approved', false)
+      .select('id');
+    if (upd.error) throw upd.error;
+    if (!upd.data || upd.data.length === 0) {
+      // Try by username (in case id != username in some rows)
+      const upd2 = await supabase
         .from('users')
-        .insert({ id: username, username, pin_hash: hashed, approved: false, is_admin: false });
-      if (insert.error) {
-        const msg = String(insert.error.message || '');
-        // 409 duplicate: if existing row is unapproved, refresh its pin and keep waiting
-        if ((insert as any).status === 409 || msg.includes('duplicate') || (insert.error as any).code === '23505') {
-          const existing = await supabase
-            .from('users')
-            .select('id, approved')
-            .eq('username', username)
-            .maybeSingle();
-          if (!existing.error && existing.data && existing.data.approved === false) {
-            const upd = await supabase
-              .from('users')
-              .update({ pin_hash: hashed, approved: false })
-              .eq('id', existing.data.id);
-            if (upd.error) throw upd.error;
-          } else {
-            throw insert.error;
-          }
-        } else {
-          throw insert.error;
-        }
+        .update({ pin_hash: hashed, approved: false, failed_attempts: 0, locked_until: null })
+        .eq('username', username)
+        .eq('approved', false)
+        .select('id');
+      if (upd2.error) throw upd2.error;
+      if (!upd2.data || upd2.data.length === 0) {
+        // No existing unapproved record; insert new application
+        const ins = await supabase
+          .from('users')
+          .insert({ id: username, username, pin_hash: hashed, approved: false, is_admin: false });
+        if (ins.error) throw ins.error;
       }
+    }
     try {
       await auditService.log(username, 'user_register', 'user', username, null, { username }, 'user registration submitted');
     } catch {}
