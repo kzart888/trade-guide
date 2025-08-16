@@ -66,9 +66,7 @@ export const userService = {
     const hashed = await hashPin(pin);
     const { error } = await supabase
       .from('users')
-      .insert({ id: username, username, pin_hash: hashed, approved: false, is_admin: false })
-      .select('id')
-      .maybeSingle();
+      .insert({ id: username, username, pin_hash: hashed, approved: false, is_admin: false });
     if (error) throw error;
     try {
       await auditService.log(username, 'user_register', 'user', username, null, { username }, 'user registration submitted');
