@@ -32,6 +32,10 @@ export const userService = {
       throw new Error('ACCOUNT_LOCKED');
     }
 
+    // Disabled account: no PIN hash stored
+    if (!data.pin_hash) {
+      throw new Error('ACCOUNT_DISABLED');
+    }
     const ok = await verifyPin(pin, data.pin_hash);
     if (!ok) {
       const attempts = (data.failed_attempts ?? 0) + 1;
