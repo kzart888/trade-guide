@@ -155,19 +155,13 @@ export const userService = {
     },
   async setAdmin(targetUserId: string, isAdmin: boolean): Promise<void> {
     if (!supabase) return; // no-op in demo
-    // Try by id; if no rows affected, try by username
-    let q = supabase.from('users').update({ is_admin: isAdmin }).eq('id', targetUserId).select('id');
-    let { data, error } = await q;
-    if (error) throw error;
-    if (!data || data.length === 0) {
-      const res2 = await supabase.from('users').update({ is_admin: isAdmin }).eq('username', targetUserId).select('id');
-      if (res2.error) throw res2.error;
-    }
+  const { error } = await supabase.from('users').update({ is_admin: isAdmin }).eq('id', targetUserId).select('id');
+  if (error) throw error;
   },
   async deleteUser(targetUserId: string): Promise<void> {
     if (!supabase) return; // demo no-op
     // Prefer hard delete so the user must re-register
-    let { data, error } = await supabase
+    let { error } = await supabase
       .from('users')
       .delete()
       .eq('id', targetUserId)
@@ -186,49 +180,18 @@ export const userService = {
       }
       throw error;
     }
-    if (!data || data.length === 0) {
-      // Try by username
-      const res2 = await supabase
-        .from('users')
-        .delete()
-        .eq('username', targetUserId)
-        .select('id');
-      if (res2.error) {
-        const msg = String(res2.error.message || '');
-        if ((res2.error as any).code === '23503' || msg.includes('foreign key')) {
-          const disable2 = await supabase
-            .from('users')
-            .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
-            .eq('username', targetUserId)
-            .select('id');
-          if (disable2.error) throw disable2.error;
-          return;
-        }
-        throw res2.error;
-      }
-      if (!res2.data || res2.data.length === 0) {
-        throw new Error('USER_NOT_FOUND');
-      }
-    }
+    // Consider success if no error; avoid throwing on empty return payload
   },
   async approve(targetUserId: string, approved: boolean, opts?: { adminUserId?: string }): Promise<void> {
     if (!supabase) return; // demo mode no-op
     if (approved) {
       // Approve: mark approved
-      let { data, error } = await supabase
+      let { error } = await supabase
         .from('users')
         .update({ approved: true })
         .eq('id', targetUserId)
         .select('id');
       if (error) throw error;
-      if (!data || data.length === 0) {
-        const res2 = await supabase
-          .from('users')
-          .update({ approved: true })
-          .eq('username', targetUserId)
-          .select('id');
-        if (res2.error) throw res2.error;
-      }
     } else {
       // Reject: hard delete so user must re-apply
       let del = await supabase.from('users').delete().eq('id', targetUserId).select('id');
@@ -244,23 +207,6 @@ export const userService = {
           if (dis.error) throw dis.error;
         } else {
           throw del.error;
-        }
-      } else if (!del.data || del.data.length === 0) {
-        const del2 = await supabase.from('users').delete().eq('username', targetUserId).select('id');
-        if (del2.error) {
-          const msg = String(del2.error.message || '');
-          if ((del2.error as any).code === '23503' || msg.includes('foreign key')) {
-            const dis2 = await supabase
-              .from('users')
-              .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
-              .eq('username', targetUserId)
-              .select('id');
-            if (dis2.error) throw dis2.error;
-          } else {
-            throw del2.error;
-          }
-        } else if (!del2.data || del2.data.length === 0) {
-          throw new Error('USER_NOT_FOUND');
         }
       }
     }
@@ -290,20 +236,12 @@ export const userService = {
       }
     }
     const hashed = await hashPin(newPin);
-    let { data, error } = await supabase
+  let { error } = await supabase
       .from('users')
       .update({ pin_hash: hashed, failed_attempts: 0, locked_until: null })
       .eq('id', targetUserId)
       .select('id');
     if (error) throw error;
-    if (!data || data.length === 0) {
-      const res2 = await supabase
-        .from('users')
-        .update({ pin_hash: hashed, failed_attempts: 0, locked_until: null })
-        .eq('username', targetUserId)
-        .select('id');
-      if (res2.error) throw res2.error;
-    }
     try {
       await auditService.log((opts?.operatorId ?? null) as any, 'user_reset_pin', 'user', targetUserId, null, null, 'reset user pin');
     } catch {}
