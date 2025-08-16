@@ -195,37 +195,20 @@ export const userService = {
         if (upd2.error) throw upd2.error;
       }
     } else {
-      // Reject: hard delete so user must re-apply
-      let del = await supabase.from('users').delete().eq('id', targetUserId).select('id');
-      if (del.error) {
-        const msg = String(del.error.message || '');
-        if ((del.error as any).code === '23503' || msg.includes('foreign key')) {
-          // Fallback: disable
-          const dis = await supabase
-            .from('users')
-            .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
-            .eq('id', targetUserId)
-            .select('id');
-          if (dis.error) throw dis.error;
-        } else {
-          throw del.error;
-        }
-      } else if (!del.data || del.data.length === 0) {
-        // No rows matched by id; try by username
-        const del2 = await supabase.from('users').delete().eq('username', targetUserId).select('id');
-        if (del2.error) {
-          const msg2 = String(del2.error.message || '');
-          if ((del2.error as any).code === '23503' || msg2.includes('foreign key')) {
-            const dis2 = await supabase
-              .from('users')
-              .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
-              .eq('username', targetUserId)
-              .select('id');
-            if (dis2.error) throw dis2.error;
-          } else {
-            throw del2.error;
-          }
-        }
+      // Reject: soft disable (avoid FK conflicts and 409s)
+      let dis = await supabase
+        .from('users')
+        .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
+        .eq('id', targetUserId)
+        .select('id');
+      if (dis.error) throw dis.error;
+      if (!dis.data || dis.data.length === 0) {
+        const dis2 = await supabase
+          .from('users')
+          .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
+          .eq('username', targetUserId)
+          .select('id');
+        if (dis2.error) throw dis2.error;
       }
     }
     try {
