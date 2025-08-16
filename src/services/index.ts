@@ -7,13 +7,15 @@ import type { PriceMap } from '@/core/types/domain';
 
 export const userService = {
   // register, approve, verifyPin ...
-  async login(username: string, pin: string): Promise<{ username: string; approved: boolean; isAdmin: boolean }>{
+  async login(username: string, pin: string): Promise<{ username: string; approved: boolean; isAdmin: boolean; isCreator: boolean }> {
     if (!validatePinFormat(pin)) throw new Error('PIN_INVALID');
     if (!supabase) {
       // Mock mode: only accept pin '1234'
       if (pin !== '1234') throw new Error('PIN_INVALID');
       // Demo: username 'admin' has admin rights
-      return { username, approved: true, isAdmin: username.toLowerCase() === 'admin' };
+      const isAdmin = username.toLowerCase() === 'admin';
+      const isCreator = username.toLowerCase() === 'admin';
+      return { username, approved: true, isAdmin, isCreator };
     }
 
     // Fetch user (approved users are selectable per RLS). If not found, treat as not approved or not exists.
@@ -52,7 +54,8 @@ export const userService = {
       await auditService.log(username, 'user_login', 'user', username, null, { ok: true });
     } catch {}
 
-    return { username: data.username, approved: !!data.approved, isAdmin: !!data.is_admin };
+  const isCreator = data.username === 'admin';
+  return { username: data.username, approved: !!data.approved, isAdmin: !!data.is_admin, isCreator };
   },
   async register(username: string, pin: string): Promise<{ ok: true }>{
     if (!validatePinFormat(pin)) throw new Error('PIN_INVALID');
@@ -87,6 +90,35 @@ export const userService = {
       .order('created_at', { ascending: true });
     if (error) throw error;
     return (data ?? []).map((u: any) => ({ id: u.id, username: u.username, created_at: u.created_at }));
+  },
+  async listAll(): Promise<Array<{ id: string; username: string; approved: boolean; is_admin: boolean; created_at?: string }>> {
+    if (!supabase) {
+      return [
+        { id: 'admin', username: 'admin', approved: true, is_admin: true },
+        { id: 'user_a', username: 'user_a', approved: true, is_admin: false },
+        { id: 'user_b', username: 'user_b', approved: false, is_admin: false },
+      ];
+    }
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, username, approved, is_admin, created_at')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as any;
+  },
+  async setAdmin(targetUserId: string, isAdmin: boolean): Promise<void> {
+    if (!supabase) return; // no-op in demo
+    const { error } = await supabase.from('users').update({ is_admin: isAdmin }).eq('id', targetUserId);
+    if (error) throw error;
+  },
+  async deleteUser(targetUserId: string): Promise<void> {
+    if (!supabase) return; // demo no-op
+    // Soft disable login: set approved = false and clear lock counters
+    const { error } = await supabase
+      .from('users')
+      .update({ approved: false, locked_until: new Date(8640000000000000).toISOString(), failed_attempts: 99 })
+      .eq('id', targetUserId);
+    if (error) throw error;
   },
   async approve(targetUserId: string, approved: boolean, opts?: { adminUserId?: string }): Promise<void> {
     if (!supabase) return; // demo mode no-op

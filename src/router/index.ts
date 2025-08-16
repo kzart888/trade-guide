@@ -18,14 +18,16 @@ const router = createRouter({
 });
 
 // Simple auth guard for selected routes
-const protectedPaths = new Set(['/prices', '/compute', '/city-config', '/admin', '/me']);
+const protectedPaths = new Set(['/prices', '/compute', '/city-config', '/distance-config', '/admin', '/me']);
 router.beforeEach((to) => {
   if (!protectedPaths.has(to.path)) return true;
   const store = useUserStore();
   if (!store.username) {
     return { path: '/login', query: { redirect: to.fullPath } };
   }
-  if (to.path === '/admin' && !store.isAdmin) {
+  // Only admin/creator can access admin and config pages
+  const needAdmin = new Set(['/admin', '/city-config', '/distance-config']);
+  if (needAdmin.has(to.path) && !(store.isAdmin || (store as any).isCreator)) {
     return { path: '/compute', query: { msg: 'forbidden' } };
   }
   return true;
