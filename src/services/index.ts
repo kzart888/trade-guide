@@ -161,15 +161,15 @@ export const userService = {
   async deleteUser(targetUserId: string): Promise<void> {
     if (!supabase) return; // demo no-op
     // Prefer hard delete so the user must re-register
-    let { error } = await supabase
+    let del = await supabase
       .from('users')
       .delete()
       .eq('id', targetUserId)
       .select('id');
-    if (error) {
+    if (del.error) {
       // If FK violation, fall back to disabling
-      const msg = String(error.message || '');
-      if ((error as any).code === '23503' || msg.includes('foreign key')) {
+      const msg = String(del.error.message || '');
+      if ((del.error as any).code === '23503' || msg.includes('foreign key')) {
         const disable = await supabase
           .from('users')
           .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
@@ -178,7 +178,29 @@ export const userService = {
         if (disable.error) throw disable.error;
         return;
       }
-      throw error;
+      throw del.error;
+    }
+    // If no rows deleted (possible if frontend passed username instead of id), try by username.
+    if (!del.data || del.data.length === 0) {
+      const del2 = await supabase
+        .from('users')
+        .delete()
+        .eq('username', targetUserId)
+        .select('id');
+      if (del2.error) {
+        const msg = String(del2.error.message || '');
+        if ((del2.error as any).code === '23503' || msg.includes('foreign key')) {
+          const dis = await supabase
+            .from('users')
+            .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
+            .eq('username', targetUserId)
+            .select('id');
+          if (dis.error) throw dis.error;
+          return;
+        }
+        throw del2.error;
+      }
+      // If still zero rows, treat as no-op; do not throw hard to keep UI responsive.
     }
     // Consider success if no error; avoid throwing on empty return payload
   },
@@ -186,12 +208,20 @@ export const userService = {
     if (!supabase) return; // demo mode no-op
     if (approved) {
       // Approve: mark approved
-      let { error } = await supabase
+      let upd = await supabase
         .from('users')
         .update({ approved: true })
         .eq('id', targetUserId)
         .select('id');
-      if (error) throw error;
+      if (upd.error) throw upd.error;
+      if (!upd.data || upd.data.length === 0) {
+        const upd2 = await supabase
+          .from('users')
+          .update({ approved: true })
+          .eq('username', targetUserId)
+          .select('id');
+        if (upd2.error) throw upd2.error;
+      }
     } else {
       // Reject: hard delete so user must re-apply
       let del = await supabase.from('users').delete().eq('id', targetUserId).select('id');
@@ -207,6 +237,22 @@ export const userService = {
           if (dis.error) throw dis.error;
         } else {
           throw del.error;
+        }
+      } else if (!del.data || del.data.length === 0) {
+        // No rows matched by id; try by username
+        const del2 = await supabase.from('users').delete().eq('username', targetUserId).select('id');
+        if (del2.error) {
+          const msg2 = String(del2.error.message || '');
+          if ((del2.error as any).code === '23503' || msg2.includes('foreign key')) {
+            const dis2 = await supabase
+              .from('users')
+              .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
+              .eq('username', targetUserId)
+              .select('id');
+            if (dis2.error) throw dis2.error;
+          } else {
+            throw del2.error;
+          }
         }
       }
     }
