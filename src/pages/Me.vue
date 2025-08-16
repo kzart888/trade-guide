@@ -1,6 +1,6 @@
 <template>
   <div class="p-4 space-y-3 pb-20">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
       <h1 class="text-lg font-600">我的</h1>
       <button class="px-3 py-1.5 border rounded" @click="logout">退出登录</button>
     </div>

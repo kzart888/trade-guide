@@ -1,10 +1,13 @@
 <template>
   <div class="p-4 space-y-3 pb-20">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
       <h1 class="text-lg font-600">价格录入</h1>
-      <div class="text-xs text-gray-500">
-        <span v-if="dirty">有未保存更改</span>
-        <span v-else>已保存</span>
+      <div class="flex items-center gap-3">
+        <div class="text-xs text-gray-500">
+          <span v-if="dirty">有未保存更改</span>
+          <span v-else>已保存</span>
+        </div>
+        <button class="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!dirty || saving" @click="save">保存</button>
       </div>
     </div>
 
@@ -36,19 +39,7 @@
           <span class="text-xs text-gray-400" :title="updatedAtTitle(currentCityId,p.id)">{{ updatedAtCompact(currentCityId,p.id) }}</span>
         </div>
       </template>
-    </div>
-
-  <div class="flex items-center gap-3">
-      <button class="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!dirty || saving" @click="save">保存</button>
-      <div class="text-sm" role="status">
-        <span v-if="saving" class="text-blue-600">保存中…</span>
-        <span v-else-if="saveStatus==='success'" class="text-green-600">保存成功</span>
-        <template v-else-if="saveStatus==='error'">
-          <span class="text-red-600">保存失败: {{ errorMessage || '网络或服务异常' }}</span>
-          <button class="ml-2 px-2 py-1 text-xs bg-red-50 text-red-700 rounded border border-red-200" @click="save" :disabled="saving">重试</button>
-        </template>
-      </div>
-    </div>
+  </div>
   </div>
 </template>
 

@@ -1,11 +1,13 @@
 <template>
   <div class="p-4 space-y-4">
-    <h1 class="text-lg font-600">用户管理</h1>
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
+      <h1 class="text-lg font-600">用户管理</h1>
+      <button class="px-3 py-1 rounded bg-gray-200" @click="load" :disabled="loading">{{ loading ? '加载中…' : '刷新' }}</button>
+    </div>
     <p v-if="!canManage" class="text-red-500">权限不足：仅管理员或创建者可访问。</p>
 
     <div v-else class="space-y-3">
       <div class="flex items-center gap-2">
-        <button class="px-3 py-1 rounded bg-gray-200" @click="load" :disabled="loading">{{ loading ? '加载中…' : '刷新' }}</button>
         <span v-if="error" class="text-red-500">{{ error }}</span>
       </div>
 
