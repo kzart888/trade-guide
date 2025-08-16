@@ -1,13 +1,13 @@
 <template>
   <div class="p-4 space-y-3 pb-20">
-    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-2 z-10">
-      <h1 class="text-lg font-600">价格录入</h1>
-      <div class="flex items-center gap-3">
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-1 md:py-2 z-10">
+      <h1 class="text-base md:text-lg font-600">价格录入</h1>
+      <div class="flex items-center gap-2 md:gap-3">
         <div class="text-xs text-gray-500">
           <span v-if="dirty">有未保存更改</span>
           <span v-else>已保存</span>
         </div>
-        <button class="px-3 py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!dirty || saving" @click="save">保存</button>
+        <button class="px-2 py-1 md:px-3 md:py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!dirty || saving" @click="save">保存</button>
       </div>
     </div>
 
@@ -20,21 +20,21 @@
       </label>
     </div>
 
-  <div class="grid grid-cols-[120px_1fr_1fr] gap-2 items-center p-2 bg-white rounded border">
+  <div class="grid grid-cols-[1fr_auto_auto] gap-1 items-center p-2 bg-white rounded border">
       <div class="text-gray-500">商品</div>
       <div class="text-gray-500">买入价</div>
   <div class="text-gray-500">卖出价 <span class="text-xs text-gray-400">(含更新时间)</span></div>
       <template v-for="p in productListSorted" :key="p.id">
         <div class="truncate">{{ p.name }}</div>
         <template v-if="isBuyable(p.id)">
-          <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1"
+          <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1 w-16 text-right"
             :value="buyPrice(currentCityId,p.id)" @input="onBuy(p.id, $event)" />
         </template>
         <template v-else>
-          <input type="number" class="border rounded px-2 py-1 opacity-50" :value="''" disabled placeholder="—" />
+          <input type="number" class="border rounded px-2 py-1 opacity-50 w-16" :value="''" disabled placeholder="—" />
         </template>
-        <div class="flex items-center gap-2">
-          <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1 w-24"
+        <div class="flex items-center gap-1">
+          <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1 w-20 text-right"
             :value="sellPrice(currentCityId,p.id)" @input="onSell(p.id, $event)" />
           <span class="text-xs text-gray-400" :title="updatedAtTitle(currentCityId,p.id)">{{ updatedAtCompact(currentCityId,p.id) }}</span>
         </div>
