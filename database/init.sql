@@ -2,8 +2,8 @@
 -- 适用于 Supabase PostgreSQL
 -- 执行前请确保已创建 Supabase 项目
 
--- 启用 RLS (行级安全)
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret-here';
+-- 说明：在 Supabase 托管环境下无需、也无权限设置 app.jwt_secret（由平台托管），
+-- 如手动设置会报错 42501 permission denied。故此处不再设置。
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
