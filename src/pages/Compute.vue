@@ -22,16 +22,9 @@
     </div>
     <button class="btn" @click="onCompute">开始计算</button>
 
-    <div v-if="plan" class="mt-4 border rounded p-3 bg-white">
-      <div>商品: {{ products[plan.productId]?.name }}</div>
-      <div>目的地: {{ cities[plan.toCityId]?.name }}</div>
-      <div>数量: {{ plan.quantity }}</div>
-      <div>总利润: {{ plan.totalProfit }}</div>
-      <div>距离: {{ plan.distance }}</div>
-    </div>
     <div v-if="plans.length" class="mt-3 bg-white border rounded">
       <div class="px-3 py-2 font-600 border-b">按商品的最佳方案（已按利润排序）</div>
-      <div v-for="p in plans" :key="p.productId" class="px-3 py-2 border-b last:border-b-0 text-sm grid grid-cols-2 gap-y-1">
+      <div v-for="(p,idx) in plans" :key="p.productId" :class="['px-3 py-2 border-b last:border-b-0 text-sm grid grid-cols-2 gap-y-1', idx===0 ? 'bg-amber-50' : '']">
         <div>商品：{{ products[p.productId]?.name }}</div>
         <div>目的地：{{ cities[p.toCityId]?.name }}</div>
         <div>最多可买：{{ p.quantity }}</div>
@@ -47,7 +40,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useCityStore, useGraphStore, usePriceStore } from '@/stores';
-import { computeBestDirectTrip, computeTopPlansPerBuyable } from '@/core/strategy/computeBestDirectTrip';
+import { computeTopPlansPerBuyable } from '@/core/strategy/computeBestDirectTrip';
 import { productService, cityService, graphService, priceService } from '@/services';
 import { useUiStore } from '@/stores/ui';
 import { humanizeError } from '@/services/errors';
@@ -75,7 +68,6 @@ const originCityId = ref('');
 const stamina = ref(20);
 const maxWeight = ref(100);
 
-const plan = ref<ReturnType<typeof computeBestDirectTrip> | null>(null);
 const plans = ref<ReturnType<typeof computeTopPlansPerBuyable>>([]);
 const ui = useUiStore();
 
@@ -103,7 +95,6 @@ function onCompute() {
     edges: graphStore.edges,
     priceMap: priceStore.priceMap,
   } as const;
-  plan.value = computeBestDirectTrip(params);
   plans.value = computeTopPlansPerBuyable(params);
 }
 </script>

@@ -38,9 +38,8 @@
       </template>
     </div>
 
-    <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3">
       <button class="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!dirty || saving" @click="save">保存</button>
-      <button class="px-3 py-2 bg-gray-200 rounded" @click="resetMock">重置Mock</button>
       <div class="text-sm" role="status">
         <span v-if="saving" class="text-blue-600">保存中…</span>
         <span v-else-if="saveStatus==='success'" class="text-green-600">保存成功</span>
@@ -150,7 +149,7 @@ function clearTimeoutIfAny() {
   }
 }
 
-async function resetMock() {
+async function loadData() {
   try {
     cityStore.cities = await cityService.list();
     cityStore.currentCityId = Object.keys(cityStore.cities)[0] || '';
@@ -163,5 +162,5 @@ async function resetMock() {
   }
 }
 
-onMounted(() => resetMock());
+onMounted(() => loadData());
 </script>

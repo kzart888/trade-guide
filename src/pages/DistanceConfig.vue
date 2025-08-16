@@ -33,12 +33,23 @@
     </div>
 
     <div class="mt-3 p-3 bg-white border rounded">
-      <div class="text-sm font-600 mb-2">新增城市</div>
-      <div class="flex items-center gap-2 text-sm">
-        <input v-model.trim="newCityName" class="border rounded px-2 py-1 w-40" placeholder="城市名" />
-        <button class="px-2 py-1 border rounded" :disabled="!canAddCity || saving" @click="onAddCity">添加</button>
-        <span class="text-xs text-gray-500">将自动分配 ID，并默认配置前 3 个商品</span>
+      <div class="text-sm font-600 mb-2">城市管理</div>
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="text-gray-500">重命名当前：</span>
+          <input v-model.trim="renameText" class="border rounded px-2 py-1 w-36" :placeholder="currentCityName || '城市名'" />
+          <button class="px-2 py-1 border rounded" :disabled="saving || !renameText || renameText===currentCityName" @click="save">应用</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-gray-500">新增城市：</span>
+          <input v-model.trim="newCityName" class="border rounded px-2 py-1 w-36" placeholder="城市名" />
+          <button class="px-2 py-1 border rounded" :disabled="!canAddCity || saving" @click="onAddCity">添加</button>
+        </div>
+        <div class="flex items-center gap-2 ml-auto">
+          <button class="px-2 py-1 border rounded text-red-600 border-red-300" :disabled="!originId || saving" @click="onDeleteCity">删除当前城市</button>
+        </div>
       </div>
+      <div class="text-xs text-gray-500 mt-1">新增城市将自动分配 ID，并默认配置当前产品列表的前三个为可买商品。</div>
     </div>
   </div>
 </template>

@@ -336,6 +336,14 @@ export const productService = {
     }
     return out;
   },
+  async update(productId: string, patch: Partial<Pick<Product, 'name' | 'weight'>>): Promise<void> {
+    if (!supabase) {
+      if ((mockProducts as any)[productId]) Object.assign((mockProducts as any)[productId], patch);
+      return;
+    }
+    const { error } = await supabase.from('products').update(patch as any).eq('id', productId);
+    if (error) throw error;
+  },
   async add(product: { id: string; name: string; weight: number }): Promise<void> {
     if (!supabase) {
       (mockProducts as any)[product.id] = { ...product } as any;

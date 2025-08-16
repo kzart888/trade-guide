@@ -38,14 +38,23 @@
     </div>
     <div class="p-3 bg-white border rounded">
       <div class="text-sm font-600 mb-2">商品管理</div>
-      <div class="space-y-1 text-sm">
-        <div v-for="p in productList" :key="p.id" class="flex items-center justify-between">
-          <div class="truncate">
-            <span class="text-gray-500 mr-2 text-xs">{{ p.id }}</span>{{ p.name }} <span class="text-xs text-gray-400">(重量: {{ p.weight }})</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <button class="px-2 py-1 border rounded" @click="onRenameProduct(p.id, p.name)">改名</button>
-            <button class="px-2 py-1 border rounded text-red-600 border-red-300" @click="onDeleteProduct(p.id, p.name)">删除</button>
+      <div class="space-y-2 text-sm">
+        <div class="flex items-center gap-2">
+          <input v-model.trim="newProduct.name" class="border rounded px-2 py-1 w-40" placeholder="商品名" />
+          <input v-model.number="newProduct.weight" type="number" min="1" inputmode="numeric" class="border rounded px-2 py-1 w-28" placeholder="重量" />
+          <button class="px-2 py-1 border rounded" :disabled="!canAddProduct" @click="addProduct">新增</button>
+        </div>
+        <div class="divide-y">
+          <div v-for="p in productList" :key="p.id" class="flex items-center justify-between py-2">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="truncate">{{ p.name }}</div>
+              <div class="text-xs text-gray-400">重量: {{ p.weight }}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="px-2 py-1 border rounded" @click="onRenameProduct(p.id, p.name)">改名</button>
+              <button class="px-2 py-1 border rounded" @click="onEditWeight(p.id, p.weight)">改重量</button>
+              <button class="px-2 py-1 border rounded text-red-600 border-red-300" @click="onDeleteProduct(p.id, p.name)">删除</button>
+            </div>
           </div>
         </div>
       </div>
@@ -208,6 +217,20 @@ async function onDeleteProduct(productId: string, name: string) {
     } else {
       ui.error(e?.message || '删除失败');
     }
+  }
+}
+
+async function onEditWeight(productId: string, weight: number) {
+  const nextStr = window.prompt('输入新重量（正整数）:', String(weight));
+  if (nextStr == null) return;
+  const next = Number(nextStr);
+  if (!Number.isFinite(next) || next <= 0) return ui.error('重量必须为正整数');
+  try {
+    await productService.update(productId, { weight: Math.floor(next) });
+    cityStore.products = await productService.list();
+    ui.success('重量已更新');
+  } catch (e: any) {
+    ui.error(e?.message || '更新失败');
   }
 }
 </script>
