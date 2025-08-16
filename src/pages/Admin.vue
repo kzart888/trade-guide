@@ -13,9 +13,12 @@
 
       <div class="bg-white border rounded">
         <div class="px-3 py-2 font-600 border-b">待审批 ({{ pending.length }})</div>
-        <div v-if="pending.length===0" class="px-3 py-6 text-gray-500">暂无</div>
+        <div class="px-3 pt-2 pb-1">
+          <input v-model.trim="pendingQuery" class="border rounded px-2 py-1 w-full text-sm" placeholder="搜索待审批用户名" />
+        </div>
+        <div v-if="filteredPending.length===0" class="px-3 py-6 text-gray-500">暂无</div>
         <div v-else class="divide-y">
-          <div v-for="u in pending" :key="u.id" class="flex items-center justify-between px-3 py-2">
+          <div v-for="u in filteredPending" :key="u.id" class="flex items-center justify-between px-3 py-2">
             <div>
               <div class="font-600">{{ u.username }}</div>
               <div class="text-xs text-gray-500">{{ u.created_at ? new Date(u.created_at).toLocaleString() : '' }}</div>
@@ -30,31 +33,58 @@
 
       <div class="bg-white border rounded">
         <div class="px-3 py-2 font-600 border-b">全部用户 ({{ all.length }})</div>
-        <div v-if="all.length===0" class="px-3 py-6 text-gray-500">暂无</div>
+        <!-- Filters -->
+        <div class="px-3 py-2 grid grid-cols-1 gap-2 md:grid-cols-4 md:items-center">
+          <input v-model.trim="query" class="border rounded px-2 py-1 text-sm md:col-span-2" placeholder="搜索用户名…" />
+          <select v-model="roleFilter" class="border rounded px-2 py-1 text-sm">
+            <option value="all">全部角色</option>
+            <option value="admin">管理员</option>
+            <option value="member">普通用户</option>
+          </select>
+          <div class="grid grid-cols-2 gap-2 md:col-span-1">
+            <select v-model="statusFilter" class="border rounded px-2 py-1 text-sm">
+              <option value="all">全部状态</option>
+              <option value="locked">已锁定</option>
+              <option value="unlocked">未锁定</option>
+            </select>
+            <select v-model="sortBy" class="border rounded px-2 py-1 text-sm">
+              <option value="ctime_desc">创建时间↓</option>
+              <option value="ctime_asc">创建时间↑</option>
+              <option value="name_asc">用户名A→Z</option>
+              <option value="name_desc">用户名Z→A</option>
+            </select>
+          </div>
+        </div>
+        <div v-if="filteredAll.length===0" class="px-3 py-6 text-gray-500">暂无</div>
         <div v-else class="divide-y">
-          <div v-for="u in all" :key="u.id" class="flex items-center justify-between px-3 py-2">
-            <div>
-              <div class="font-600">{{ u.username }}
-                <span v-if="u.is_admin" class="ml-2 text-xs px-1 rounded bg-amber-100 text-amber-700">管理员</span>
-                <span v-if="u.username==='admin'" class="ml-1 text-xs px-1 rounded bg-indigo-100 text-indigo-700">创建者</span>
-                <span v-if="(u as any).locked_until && new Date((u as any).locked_until) > new Date()" class="ml-1 text-xs px-1 rounded bg-red-100 text-red-700">已锁定</span>
+          <!-- Paged list -->
+          <div v-for="u in pagedAll" :key="u.id" class="px-3 py-2">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-600 truncate">{{ u.username }}
+                  <span v-if="u.is_admin" class="ml-2 text-xs px-1 rounded bg-amber-100 text-amber-700">管理员</span>
+                  <span v-if="u.username==='admin'" class="ml-1 text-xs px-1 rounded bg-indigo-100 text-indigo-700">创建者</span>
+                  <span v-if="(u as any).locked_until && new Date((u as any).locked_until) > new Date()" class="ml-1 text-xs px-1 rounded bg-red-100 text-red-700">已锁定</span>
+                </div>
+                <div class="text-xs text-gray-500">{{ u.created_at ? new Date(u.created_at).toLocaleString() : '' }}</div>
               </div>
-              <div class="text-xs text-gray-500">{{ u.created_at ? new Date(u.created_at).toLocaleString() : '' }}</div>
+              <button class="px-2 py-1 border rounded" @click="toggleExpand(u.id)">{{ expanded.has(u.id) ? '收起' : '操作' }}</button>
             </div>
-            <div class="flex items-center gap-2">
+            <!-- Expandable actions -->
+            <div v-if="expanded.has(u.id)" class="mt-2 flex flex-wrap items-center gap-2">
               <button class="px-2 py-1 border rounded" :disabled="loading || u.username==='admin' || !isCreator" @click="toggleAdmin(u)">{{ u.is_admin ? '取消管理员' : '设为管理员' }}</button>
-              <button
-                class="px-2 py-1 border rounded"
-                :disabled="loading || !(isAdmin||isCreator) || !(u as any).locked_until || new Date((u as any).locked_until) <= new Date()"
-                @click="unlock(u)"
-              >解除锁定</button>
-              <button
-                class="px-2 py-1 border rounded"
-                :disabled="loading || !(isAdmin||isCreator) || (u.username==='admin' && !isCreator)"
-                @click="resetPin(u)"
-              >重置PIN</button>
+              <button class="px-2 py-1 border rounded" :disabled="loading || !(isAdmin||isCreator) || !(u as any).locked_until || new Date((u as any).locked_until) <= new Date()" @click="unlock(u)">解除锁定</button>
+              <button class="px-2 py-1 border rounded" :disabled="loading || !(isAdmin||isCreator) || (u.username==='admin' && !isCreator)" @click="resetPin(u)">重置PIN</button>
               <button class="px-2 py-1 border rounded text-red-600 border-red-300" :disabled="loading || u.username==='admin' || !isCreator" @click="deleteUser(u)">删除用户</button>
             </div>
+          </div>
+        </div>
+        <!-- Pagination -->
+        <div v-if="totalPages>1" class="px-3 py-2 flex items-center justify-between text-sm border-t">
+          <div>第 {{ currentPage }} / {{ totalPages }} 页 · 共 {{ filteredAll.length }} 人</div>
+          <div class="flex items-center gap-2">
+            <button class="px-2 py-1 border rounded" :disabled="currentPage===1" @click="currentPage--">上一页</button>
+            <button class="px-2 py-1 border rounded" :disabled="currentPage===totalPages" @click="currentPage++">下一页</button>
           </div>
         </div>
       </div>
@@ -65,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { userService } from '@/services';
 import { useUserStore } from '@/stores/user';
 import { useUiStore } from '@/stores/ui';
@@ -80,6 +110,75 @@ const loading = ref(false);
 const error = ref('');
 const pending = ref<Array<{ id: string; username: string; created_at?: string }>>([]);
 const all = ref<Array<{ id: string; username: string; approved: boolean; is_admin: boolean; created_at?: string; locked_until?: string; failed_attempts?: number }>>([]);
+
+// Filters & search
+const query = ref('');
+const roleFilter = ref<'all'|'admin'|'member'>('all');
+const statusFilter = ref<'all'|'locked'|'unlocked'>('all');
+const sortBy = ref<'ctime_desc'|'ctime_asc'|'name_asc'|'name_desc'>('ctime_desc');
+const pageSize = ref(20);
+const currentPage = ref(1);
+const expanded = ref(new Set<string>());
+const pendingQuery = ref('');
+
+const filteredPending = computed(() => {
+  const q = pendingQuery.value.trim().toLowerCase();
+  if (!q) return pending.value;
+  return pending.value.filter(u => u.username.toLowerCase().includes(q));
+});
+
+function isLocked(u: { locked_until?: string }) {
+  return !!(u.locked_until && new Date(u.locked_until) > new Date());
+}
+
+const filteredAll = computed(() => {
+  let list = all.value.slice();
+  const q = query.value.trim().toLowerCase();
+  if (q) list = list.filter(u => u.username.toLowerCase().includes(q));
+  if (roleFilter.value !== 'all') {
+    list = list.filter(u => roleFilter.value === 'admin' ? u.is_admin : !u.is_admin);
+  }
+  if (statusFilter.value !== 'all') {
+    list = list.filter(u => statusFilter.value === 'locked' ? isLocked(u) : !isLocked(u));
+  }
+  switch (sortBy.value) {
+    case 'ctime_asc':
+      list.sort((a,b) => new Date(a.created_at||0).getTime() - new Date(b.created_at||0).getTime());
+      break;
+    case 'name_asc':
+      list.sort((a,b) => a.username.localeCompare(b.username));
+      break;
+    case 'name_desc':
+      list.sort((a,b) => b.username.localeCompare(a.username));
+      break;
+    default:
+      list.sort((a,b) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime());
+  }
+  return list;
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize.value)));
+const pagedAll = computed(() => {
+  const page = Math.min(currentPage.value, totalPages.value);
+  const start = (page - 1) * pageSize.value;
+  return filteredAll.value.slice(start, start + pageSize.value);
+});
+
+function toggleExpand(id: string) {
+  const s = expanded.value;
+  if (s.has(id)) s.delete(id); else s.add(id);
+  // force reactivity by creating a new Set
+  expanded.value = new Set(s);
+}
+
+// Reset page when filters/search change
+watch([query, roleFilter, statusFilter, sortBy], () => {
+  currentPage.value = 1;
+});
+// Clamp page if filtered count shrinks
+watch(filteredAll, () => {
+  if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
+});
 
 async function load() {
   loading.value = true;
