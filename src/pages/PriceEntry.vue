@@ -1,13 +1,13 @@
 <template>
   <div class="p-4 space-y-3 pb-20">
-    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-1 md:py-2 z-10">
-      <h1 class="text-base md:text-lg font-600">价格录入</h1>
-      <div class="flex items-center gap-2 md:gap-3">
+    <div class="flex items-center justify-between sticky top-0 bg-gray-50/90 backdrop-blur py-0.5 md:py-2 z-10">
+      <h1 class="text-sm md:text-lg font-600 leading-5 md:leading-6">价格录入</h1>
+      <div class="flex items-center gap-1 md:gap-3">
         <div class="text-xs text-gray-500">
           <span v-if="dirty">有未保存更改</span>
           <span v-else>已保存</span>
         </div>
-        <button class="px-2 py-1 md:px-3 md:py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!dirty || saving" @click="save">保存</button>
+        <button class="px-2 py-0.5 md:px-3 md:py-1.5 bg-blue-600 text-white rounded disabled:opacity-60" :disabled="!dirty || saving" @click="save">保存</button>
       </div>
     </div>
 
