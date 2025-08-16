@@ -165,7 +165,7 @@ export const priceService = {
       const c = row.city_id as string;
       const p = row.product_id as string;
       if (!map.has(c)) map.set(c, new Map());
-      map.get(c)!.set(p, { buyPrice: row.buy_price ?? null, sellPrice: row.sell_price ?? null });
+  map.get(c)!.set(p, { buyPrice: row.buy_price ?? null, sellPrice: row.sell_price ?? null, updatedAt: row.updated_at ? new Date(row.updated_at as string) : null });
       if (row.updated_at) {
         const d = new Date(row.updated_at as string);
         if (!latest || d > latest) latest = d;

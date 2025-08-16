@@ -20,7 +20,7 @@
   <div class="grid grid-cols-[120px_1fr_1fr] gap-2 items-center p-2 bg-white rounded border">
       <div class="text-gray-500">商品</div>
       <div class="text-gray-500">买入价</div>
-      <div class="text-gray-500">卖出价</div>
+  <div class="text-gray-500">卖出价 <span class="text-xs text-gray-400">(含更新时间)</span></div>
       <template v-for="p in productListSorted" :key="p.id">
         <div class="truncate">{{ p.name }}</div>
         <template v-if="isBuyable(p.id)">
@@ -30,8 +30,11 @@
         <template v-else>
           <input type="number" class="border rounded px-2 py-1 opacity-50" :value="''" disabled placeholder="—" />
         </template>
-        <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1"
-          :value="sellPrice(currentCityId,p.id)" @input="onSell(p.id, $event)" />
+        <div class="flex items-center gap-2">
+          <input type="number" min="0" inputmode="numeric" class="border rounded px-2 py-1 w-24"
+            :value="sellPrice(currentCityId,p.id)" @input="onSell(p.id, $event)" />
+          <span class="text-xs text-gray-400" :title="updatedAtTitle(currentCityId,p.id)">{{ updatedAtCompact(currentCityId,p.id) }}</span>
+        </div>
       </template>
     </div>
 
@@ -88,6 +91,25 @@ function buyPrice(cityId: string, pid: string) {
 }
 function sellPrice(cityId: string, pid: string) {
   return priceStore.priceMap.get(cityId)?.get(pid)?.sellPrice ?? '';
+}
+function updatedAt(cityId: string, pid: string) {
+  return priceStore.priceMap.get(cityId)?.get(pid)?.updatedAt ?? null;
+}
+function updatedAtTitle(cityId: string, pid: string) {
+  const d = updatedAt(cityId, pid);
+  return d ? new Date(d).toLocaleString() : '';
+}
+function updatedAtCompact(cityId: string, pid: string) {
+  const d = updatedAt(cityId, pid);
+  if (!d) return '';
+  const ms = Date.now() - new Date(d).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return '刚刚';
+  if (m < 60) return `${m} 分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小时前`;
+  const days = Math.floor(h / 24);
+  return `${days} 天前`;
 }
 
 function onBuy(pid: string, e: Event) {

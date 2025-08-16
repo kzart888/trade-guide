@@ -55,6 +55,7 @@ export interface PriceRecord {
 export type PriceMap = Map<string, Map<string, {
   buyPrice: number | null;
   sellPrice: number | null;
+  updatedAt?: Date | null;
 }>>;
 
 /**

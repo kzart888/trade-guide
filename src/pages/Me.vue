@@ -1,6 +1,23 @@
 <template>
-  <div class="p-4">
-    <h1 class="text-lg font-600">我的</h1>
-    <p class="text-gray-500">占位页：后续展示个人信息、操作历史。</p>
+  <div class="p-4 space-y-3 pb-20">
+    <div class="flex items-center justify-between">
+      <h1 class="text-lg font-600">我的</h1>
+      <button class="px-3 py-1.5 border rounded" @click="logout">退出登录</button>
+    </div>
+    <div class="text-sm text-gray-600">
+      <div>用户名：{{ store.username }}</div>
+      <div>角色：{{ store.isAdmin ? '管理员' : '普通用户' }}</div>
+    </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { useUserStore } from '@/stores/user';
+import router from '@/router';
+
+const store = useUserStore();
+function logout() {
+  store.logout();
+  router.replace('/login');
+}
+</script>
