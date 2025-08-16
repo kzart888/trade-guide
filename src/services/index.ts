@@ -160,49 +160,21 @@ export const userService = {
   },
   async deleteUser(targetUserId: string): Promise<void> {
     if (!supabase) return; // demo no-op
-    // Prefer hard delete so the user must re-register
-    let del = await supabase
+    // Soft-disable only (avoid FK delete errors and 409s in Network)
+    let disable = await supabase
       .from('users')
-      .delete()
+      .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
       .eq('id', targetUserId)
       .select('id');
-    if (del.error) {
-      // If FK violation, fall back to disabling
-      const msg = String(del.error.message || '');
-      if ((del.error as any).code === '23503' || msg.includes('foreign key')) {
-        const disable = await supabase
-          .from('users')
-          .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
-          .eq('id', targetUserId)
-          .select('id');
-        if (disable.error) throw disable.error;
-        return;
-      }
-      throw del.error;
-    }
-    // If no rows deleted (possible if frontend passed username instead of id), try by username.
-    if (!del.data || del.data.length === 0) {
-      const del2 = await supabase
+    if (disable.error) throw disable.error;
+    if (!disable.data || disable.data.length === 0) {
+      const disable2 = await supabase
         .from('users')
-        .delete()
+        .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
         .eq('username', targetUserId)
         .select('id');
-      if (del2.error) {
-        const msg = String(del2.error.message || '');
-        if ((del2.error as any).code === '23503' || msg.includes('foreign key')) {
-          const dis = await supabase
-            .from('users')
-            .update({ approved: false, pin_hash: null, failed_attempts: 0, locked_until: null })
-            .eq('username', targetUserId)
-            .select('id');
-          if (dis.error) throw dis.error;
-          return;
-        }
-        throw del2.error;
-      }
-      // If still zero rows, treat as no-op; do not throw hard to keep UI responsive.
+      if (disable2.error) throw disable2.error;
     }
-    // Consider success if no error; avoid throwing on empty return payload
   },
   async approve(targetUserId: string, approved: boolean, opts?: { adminUserId?: string }): Promise<void> {
     if (!supabase) return; // demo mode no-op
