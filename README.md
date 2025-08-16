@@ -218,6 +218,19 @@ interface TradePlan {
 3. 配置构建命令：`npm run build`
 4. 绑定自定义域名
 
+### 数据重置与全量样例数据
+
+需要在 Supabase 中快速重置并填充完整样例数据用于测试：
+
+1) 打开 Supabase Dashboard → SQL Editor
+2) 打开并粘贴 `database/reset-and-seed-full.sql` 全文执行
+
+这会：
+- 保留/创建管理员用户 admin（PIN: 1234）
+- 清空并重建 25 个商品、20 个城市（每城 3 个可买商品）
+- 为所有城市对生成完整对称连边（距离 3–19）
+- 为所有 (城市, 商品) 对生成价格（可买商品有买价，所有商品有卖价）
+
 ## 🤝 贡献指南
 
 1. Fork项目到个人账户
