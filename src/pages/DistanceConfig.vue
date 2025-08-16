@@ -142,7 +142,10 @@ async function save() {
     const upserts = Object.values(toUpsert);
     const deletes = Object.values(toDelete);
     if (upserts.length) await graphService.upsertEdges(upserts);
-    if (deletes.length) await graphService.deleteEdges(deletes);
+    if (deletes.length) {
+      const destIds = Array.from(new Set(deletes.map(d => (d.fromCityId === originId.value ? d.toCityId : d.fromCityId))));
+      await graphService.deleteEdgesSymmetric(originId.value, destIds);
+    }
     // refresh
     graphStore.edges = await graphService.listEdges();
     ui.success('距离已保存');

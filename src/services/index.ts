@@ -512,20 +512,33 @@ export const graphService = {
       }
       return;
     }
-    // Batch by from_city_id and delete with IN to reduce request count
+    // Fallback: perform deletes in minimal batches by grouping
     const groups: Record<string, string[]> = {};
     for (const r of rows) {
       if (!groups[r.fromCityId]) groups[r.fromCityId] = [];
       groups[r.fromCityId].push(r.toCityId);
     }
     for (const [from, tos] of Object.entries(groups)) {
-      const { error } = await supabase
-        .from('edges')
-        .delete()
-        .eq('from_city_id', from)
-        .in('to_city_id', tos);
+      const { error } = await supabase.from('edges').delete().eq('from_city_id', from).in('to_city_id', tos);
       if (error) throw error;
     }
+  },
+  async deleteEdgesSymmetric(originId: string, destIds: string[]): Promise<void> {
+    if (!supabase) {
+      for (const d of destIds) {
+        let i = (mockEdges as any).findIndex((e: any) => e.fromCityId === originId && e.toCityId === d);
+        if (i >= 0) (mockEdges as any).splice(i, 1);
+        i = (mockEdges as any).findIndex((e: any) => e.fromCityId === d && e.toCityId === originId);
+        if (i >= 0) (mockEdges as any).splice(i, 1);
+      }
+      return;
+    }
+    if (!destIds.length) return;
+    // Do at most two requests: A->IN(dests), IN(dests)->A
+    let { error } = await supabase.from('edges').delete().eq('from_city_id', originId).in('to_city_id', destIds);
+    if (error) throw error;
+    const res2 = await supabase.from('edges').delete().in('from_city_id', destIds).eq('to_city_id', originId);
+    if (res2.error) throw res2.error;
   },
 };
 
