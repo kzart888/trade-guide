@@ -17,7 +17,7 @@ This app runs in two modes:
 
 ## 3) Connect app to Supabase
 Set these env vars in Vercel Project Settings → Environment Variables:
-- VITE_SUPABASE_URL = your Supabase project URL
+- VITE_SUPABASE_URL = your Supabase project URL (root, without /rest/v1)
 - VITE_SUPABASE_ANON_KEY = your anon key
 
 Redeploy. The app will automatically switch out of demo mode.
@@ -47,7 +47,7 @@ Redeploy. The app will automatically switch out of demo mode.
 
 2) 在 Vercel 配置环境变量并重新部署
 - Vercel 项目 → Settings → Environment Variables：
-   - VITE_SUPABASE_URL = 你的 Supabase 项目 URL
+   - VITE_SUPABASE_URL = 你的 Supabase 项目 URL（根路径，不要带 /rest/v1）
    - VITE_SUPABASE_ANON_KEY = 你的匿名密钥（anon key）
 - 重新 Deploy（或 Redeploy）
 

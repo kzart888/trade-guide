@@ -305,10 +305,10 @@ export const priceService = {
     const map: PriceMap = new Map();
     let latest: Date | null = null;
     for (const row of data ?? []) {
-      const c = row.city_id as string;
-      const p = row.product_id as string;
+  const c = String((row as any).city_id);
+  const p = String((row as any).product_id);
       if (!map.has(c)) map.set(c, new Map());
-  map.get(c)!.set(p, { buyPrice: row.buy_price ?? null, sellPrice: row.sell_price ?? null, updatedAt: row.updated_at ? new Date(row.updated_at as string) : null });
+  map.get(c)!.set(p, { buyPrice: (row as any).buy_price ?? null, sellPrice: (row as any).sell_price ?? null, updatedAt: (row as any).updated_at ? new Date((row as any).updated_at as string) : null });
       if (row.updated_at) {
         const d = new Date(row.updated_at as string);
         if (!latest || d > latest) latest = d;
@@ -320,15 +320,19 @@ export const priceService = {
 
 export const cityService = {
   // get/set city & buyable products configs
-  async add(city: { id: string; name: string; buyableProductIds: [string, string, string]; createdBy?: string }): Promise<void> {
+  async add(city: { id: string; name: string; buyableProductIds: [string, string, string]; createdBy?: string }): Promise<string> {
     if (!supabase) {
       (mockCities as any)[city.id] = { id: city.id, name: city.name, buyableProductIds: city.buyableProductIds } as any;
-      return;
+      return city.id;
     }
-    const { error } = await supabase
+    // In DB, cities.id is integer (serial). Let DB generate the id and insert other fields.
+    const { data, error } = await supabase
       .from('cities')
-      .insert({ id: city.id, name: city.name, buyable_product_ids: city.buyableProductIds, created_by: city.createdBy ?? null });
+      .insert({ name: city.name, buyable_product_ids: city.buyableProductIds, created_by: city.createdBy ?? null })
+      .select('id')
+      .single();
     if (error) throw error;
+    return String((data as any).id);
   },
   async updateBuyables(
     cityId: string,
@@ -363,8 +367,9 @@ export const cityService = {
     if (error) throw error;
     const out: Record<string, City> = {};
     for (const c of data ?? []) {
-      out[c.id] = {
-        id: c.id,
+      const id = String((c as any).id);
+      out[id] = {
+        id,
         name: c.name,
         // Allow blanks (nulls) if product was deleted; coerce to empty string for UI compatibility
         buyableProductIds: (c.buyable_product_ids as (string|null)[])
@@ -439,7 +444,7 @@ export const graphService = {
       .from('edges')
       .select('from_city_id, to_city_id, distance');
     if (error) throw error;
-    return (data ?? []).map((e: any) => ({ fromCityId: e.from_city_id, toCityId: e.to_city_id, distance: e.distance }));
+  return (data ?? []).map((e: any) => ({ fromCityId: String(e.from_city_id), toCityId: String(e.to_city_id), distance: e.distance }));
   },
   async upsertEdges(rows: Array<{ fromCityId: string; toCityId: string; distance: number }>): Promise<void> {
     if (!supabase) {
@@ -503,7 +508,8 @@ export const productService = {
     if (error) throw error;
     const out: Record<string, Product> = {};
     for (const p of data ?? []) {
-      out[p.id] = { id: p.id, name: p.name, weight: p.weight };
+  const id = String((p as any).id);
+  out[id] = { id, name: p.name, weight: (p as any).weight };
     }
     return out;
   },
@@ -520,7 +526,12 @@ export const productService = {
       (mockProducts as any)[product.id] = { ...product } as any;
       return;
     }
-    const { error } = await supabase.from('products').insert({ id: product.id, name: product.name, weight: product.weight });
+    // In DB, products.id is integer (serial). Let DB generate the id.
+    const { error } = await supabase
+      .from('products')
+      .insert({ name: product.name, weight: product.weight })
+      .select('id')
+      .single();
     if (error) throw error;
   },
   async rename(productId: string, newName: string): Promise<void> {

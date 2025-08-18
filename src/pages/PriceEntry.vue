@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useCityStore, usePriceStore } from '@/stores';
 import { productService, cityService, priceService } from '@/services';
 import { humanizeError } from '@/services/errors';
@@ -55,12 +55,10 @@ const priceStore = usePriceStore();
 
 const currentCityId = computed(() => cityStore.currentCityId);
 const productList = computed(() => Object.values(cityStore.products));
+// Keep a consistent product order across all cities to avoid misalignment when entering prices
 const productListSorted = computed(() => {
   const list = productList.value.slice();
-  const city = cityStore.cities[cityStore.currentCityId];
-  if (!city) return list;
-  const buyables = new Set(city.buyableProductIds);
-  return list.sort((a, b) => Number(!buyables.has(a.id)) - Number(!buyables.has(b.id)));
+  return list.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 const buyableSet = computed(() => {
   const city = cityStore.cities[cityStore.currentCityId];
@@ -143,7 +141,16 @@ function clearTimeoutIfAny() {
 async function loadData() {
   try {
     cityStore.cities = await cityService.list();
-    cityStore.currentCityId = Object.keys(cityStore.cities)[0] || '';
+    // Prefer current selection if valid; else restore from localStorage; else pick first
+    const current = cityStore.currentCityId;
+    const saved = (typeof window !== 'undefined') ? (localStorage.getItem('tg.currentCityId') || '') : '';
+    if (current && cityStore.cities[current]) {
+      // keep current
+    } else if (saved && cityStore.cities[saved]) {
+      cityStore.currentCityId = saved;
+    } else {
+      cityStore.currentCityId = Object.keys(cityStore.cities)[0] || '';
+    }
     cityStore.products = await productService.list();
     const { priceMap, lastUpdatedAt } = await priceService.fetchMap();
     priceStore.priceMap = priceMap as any;
@@ -153,5 +160,13 @@ async function loadData() {
   }
 }
 
-onMounted(() => loadData());
+onMounted(() => {
+  // Persist city selection across reloads
+  watch(() => cityStore.currentCityId, (val) => {
+    try {
+      if (val) localStorage.setItem('tg.currentCityId', val);
+    } catch {}
+  }, { immediate: true });
+  loadData();
+});
 </script>

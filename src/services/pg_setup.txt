@@ -1,0 +1,184 @@
+-- 0) 扩展
+CREATE EXTENSION IF NOT EXISTS pgcrypto;  -- 提供 crypt() / gen_random_uuid()
+
+-- 1) 角色与权限（PostgREST 用到 anon，应用账号 tg_user）
+DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE USER tg_user WITH PASSWORD 'Kapene695077'; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+GRANT CONNECT ON DATABASE trade_guide TO tg_user;
+GRANT USAGE ON SCHEMA public TO tg_user, anon;
+
+-- 2) 通用更新时间触发器 + 审计触发器
+CREATE OR REPLACE FUNCTION public.tg_set_updated_at()
+RETURNS trigger AS $$
+BEGIN NEW.updated_at := now(); RETURN NEW; END $$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id           bigserial PRIMARY KEY,
+  table_name   text NOT NULL,
+  row_key      text,
+  action       text NOT NULL,          -- INSERT/UPDATE/DELETE
+  actor        text,                   -- username
+  old_data     jsonb,
+  new_data     jsonb,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.tg_audit()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  r record;
+  key_text text;
+BEGIN
+  -- 对于 INSERT/UPDATE 用 NEW，DELETE 用 OLD
+  r := NEW;
+  IF TG_OP = 'DELETE' THEN r := OLD; END IF;
+
+  -- 兼容不同主键：优先 id/username；否则拼接复合键
+  key_text := coalesce(
+    to_jsonb(r)->>'id',
+    to_jsonb(r)->>'username',
+    CASE WHEN (to_jsonb(r)->>'city_id') IS NOT NULL AND (to_jsonb(r)->>'product_id') IS NOT NULL
+      THEN (to_jsonb(r)->>'city_id') || '-' || (to_jsonb(r)->>'product_id') END,
+    CASE WHEN (to_jsonb(r)->>'from_city_id') IS NOT NULL AND (to_jsonb(r)->>'to_city_id') IS NOT NULL
+      THEN (to_jsonb(r)->>'from_city_id') || '>' || (to_jsonb(r)->>'to_city_id') END
+  );
+
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO audit_logs(table_name,row_key,action,actor,new_data)
+    VALUES (TG_TABLE_NAME, key_text, 'INSERT', current_setting('app.user', true), to_jsonb(NEW));
+    RETURN NEW;
+  ELSIF TG_OP = 'UPDATE' THEN
+    INSERT INTO audit_logs(table_name,row_key,action,actor,old_data,new_data)
+    VALUES (TG_TABLE_NAME, key_text, 'UPDATE', current_setting('app.user', true), to_jsonb(OLD), to_jsonb(NEW));
+    RETURN NEW;
+  ELSE
+    INSERT INTO audit_logs(table_name,row_key,action,actor,old_data)
+    VALUES (TG_TABLE_NAME, key_text, 'DELETE', current_setting('app.user', true), to_jsonb(OLD));
+    RETURN OLD;
+  END IF;
+END $$ LANGUAGE plpgsql;
+ALTER FUNCTION public.tg_audit() OWNER TO admin_pg;
+
+-- 3) 核心表
+CREATE TABLE IF NOT EXISTS public.users (
+  username        text PRIMARY KEY,            -- 用用户名当主键，便于登录
+  pin_hash        text NOT NULL,
+  approved        boolean NOT NULL DEFAULT false,
+  is_admin        boolean NOT NULL DEFAULT false,
+  is_creator      boolean NOT NULL DEFAULT false,
+  failed_attempts integer NOT NULL DEFAULT 0,
+  locked_until    timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE TRIGGER trg_users_updated BEFORE UPDATE ON public.users
+FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
+CREATE TRIGGER trg_users_audit AFTER INSERT OR UPDATE OR DELETE ON public.users
+FOR EACH ROW EXECUTE FUNCTION public.tg_audit();
+
+CREATE TABLE IF NOT EXISTS public.products (
+  id         serial PRIMARY KEY,
+  name       text UNIQUE NOT NULL,
+  enabled    boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TRIGGER trg_products_updated BEFORE UPDATE ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
+CREATE TRIGGER trg_products_audit AFTER INSERT OR UPDATE OR DELETE ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.tg_audit();
+
+CREATE TABLE IF NOT EXISTS public.cities (
+  id         serial PRIMARY KEY,
+  name       text UNIQUE NOT NULL,
+  enabled    boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TRIGGER trg_cities_updated BEFORE UPDATE ON public.cities
+FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
+CREATE TRIGGER trg_cities_audit AFTER INSERT OR UPDATE OR DELETE ON public.cities
+FOR EACH ROW EXECUTE FUNCTION public.tg_audit();
+
+-- 城市可购的3种商品（应用层限制3个，DB 保证不重复）
+CREATE TABLE IF NOT EXISTS public.city_buyables (
+  city_id    int NOT NULL REFERENCES public.cities(id) ON DELETE CASCADE,
+  product_id int NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (city_id, product_id)
+);
+CREATE TRIGGER trg_city_buyables_audit AFTER INSERT OR UPDATE OR DELETE ON public.city_buyables
+FOR EACH ROW EXECUTE FUNCTION public.tg_audit();
+
+-- 城市连边（单程；双向就各存一条），距离=体力消耗
+CREATE TABLE IF NOT EXISTS public.edges (
+  from_city_id int NOT NULL REFERENCES public.cities(id) ON DELETE CASCADE,
+  to_city_id   int NOT NULL REFERENCES public.cities(id) ON DELETE CASCADE,
+  distance     int NOT NULL CHECK (distance > 0),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (from_city_id, to_city_id)
+);
+CREATE TRIGGER trg_edges_updated BEFORE UPDATE ON public.edges
+FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
+CREATE TRIGGER trg_edges_audit AFTER INSERT OR UPDATE OR DELETE ON public.edges
+FOR EACH ROW EXECUTE FUNCTION public.tg_audit();
+
+-- 价格表：同一城市×商品唯一一条，后写覆盖先写
+CREATE TABLE IF NOT EXISTS public.price_records (
+  city_id     int NOT NULL REFERENCES public.cities(id) ON DELETE CASCADE,
+  product_id  int NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  price       int NOT NULL CHECK (price >= 0),
+  updated_by  text,  -- users.username
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (city_id, product_id)
+);
+CREATE TRIGGER trg_price_records_updated BEFORE UPDATE ON public.price_records
+FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
+CREATE TRIGGER trg_price_records_audit AFTER INSERT OR UPDATE OR DELETE ON public.price_records
+FOR EACH ROW EXECUTE FUNCTION public.tg_audit();
+
+-- 4) 授权
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO tg_user, anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tg_user, anon;
+
+-- 序列权限（Serial/Identity 用到的 nextval）
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO tg_user, anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO tg_user, anon;
+
+-- 5) 启用 RLS 并给出 MVP 开放策略（匿名可读写；后续可再收紧）
+ALTER TABLE public.users          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cities         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.city_buyables  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.edges          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.price_records  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs     ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY p_all_users ON public.users FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY p_all_products ON public.products FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY p_all_cities ON public.cities FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY p_all_city_buyables ON public.city_buyables FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY p_all_edges ON public.edges FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY p_all_prices ON public.price_records FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY p_read_audit ON public.audit_logs FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 6) 初始化一个管理员账号（PIN: 1234，登录后请尽快修改）
+INSERT INTO public.users(username, pin_hash, approved, is_admin, is_creator)
+VALUES ('admin', crypt('1234', gen_salt('bf', 10)), true, true, true)
+ON CONFLICT (username) DO UPDATE
+SET pin_hash=EXCLUDED.pin_hash, approved=EXCLUDED.approved, is_admin=EXCLUDED.is_admin, is_creator=EXCLUDED.is_creator;
+
+-- 可选：初始化一点基础数据（示例）
+INSERT INTO public.products(name) VALUES ('丝绸'),('茶叶'),('瓷器') ON CONFLICT DO NOTHING;
+INSERT INTO public.cities(name) VALUES ('长安'),('洛阳'),('建康') ON CONFLICT DO NOTHING;
